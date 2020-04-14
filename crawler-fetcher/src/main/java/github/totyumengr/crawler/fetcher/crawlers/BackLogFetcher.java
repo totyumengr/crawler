@@ -5,6 +5,7 @@ import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.commons.lang3.RandomUtils;
 import org.redisson.api.RedissonClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,7 +26,7 @@ import cn.wanghaomiao.seimi.struct.Response;
  * @author mengran7
  *
  */
-@Crawler(name = "backlog", delay = 1, httpType = SeimiHttpType.OK_HTTP3, httpTimeOut = 10000)
+@Crawler(name = BackLogFetcher.BACKLOG, delay = 1, httpType = SeimiHttpType.APACHE_HC, httpTimeOut = 10000)
 public class BackLogFetcher extends BaseSeimiCrawler {
 
 	/**
@@ -35,6 +36,7 @@ public class BackLogFetcher extends BaseSeimiCrawler {
 	
 	public static final String BACKLOG = "backlog";
 	public static final String RAWDATA = "rawdata";
+	public static final String PROXYPOOL = "proxypool";
 	
 	@Autowired
 	private RedissonClient backlogClient;
@@ -44,6 +46,11 @@ public class BackLogFetcher extends BaseSeimiCrawler {
 	@Value("${backlog.period}")
 	private int period;
 	
+	/**
+	 * 真正去执行的抓取任务类
+	 * @author mengran7
+	 *
+	 */
 	class FetchTask implements Runnable {
 		
 		protected Logger logger = LoggerFactory.getLogger(getClass());
@@ -62,15 +69,14 @@ public class BackLogFetcher extends BaseSeimiCrawler {
 					logger.debug("Get a fetch task, url={}", url);
 					Request req = Request.build(url.toString(), "handleResponse");
 					req.setCrawlerName(BackLogFetcher.BACKLOG);
+					req.setSkipDuplicateFilter(true);
 					CrawlerCache.consumeRequest(req);
 					logger.info("Submit a fetch task, url={}", url);
 				}
 			} catch (Exception e) {
-				logger.warn("Ignore unexpect error occurred: {}", e.getMessage());
+				logger.warn("Ignore unexpect error occurred.", e);
 			}
-			
 		}
-
 	}
 	
 	/**
@@ -118,6 +124,29 @@ public class BackLogFetcher extends BaseSeimiCrawler {
 		logger.info("Fail to fetch url={}", request.getUrl());
 		backlogClient.getQueue(BACKLOG).add(request.getUrl());
 		logger.info("Return url={} to backlog because fail to fetch", request.getUrl());
+	}
+
+	/**
+	 * 实现代理IP池
+	 */
+	@Override
+	public String proxy() {
+		
+		try {
+			Object proxys = backlogClient.getMap(PROXYPOOL).get(BACKLOG);
+			if (proxys != null) {
+				String[] ips = proxys.toString().split("\\|");
+				String useProxyIp = ips[RandomUtils.nextInt(0, ips.length)];
+				logger.info("Use proxy IP={} to build request on {}.", useProxyIp, BACKLOG);
+				return useProxyIp;
+			}
+		} catch (Exception e) {
+			logger.warn("Ignore error when try to get a proxy IP", e);
+			return null;
+		}
+		
+		
+		return null;
 	}
 
 }
