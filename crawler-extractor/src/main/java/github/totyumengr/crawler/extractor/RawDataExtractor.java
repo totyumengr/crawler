@@ -1,5 +1,6 @@
 package github.totyumengr.crawler.extractor;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -16,10 +17,9 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Component;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
 
+import github.totyumengr.crawler.Crawlers;
 import io.netty.buffer.ByteBufUtil;
 
 /**
@@ -31,16 +31,6 @@ import io.netty.buffer.ByteBufUtil;
 public class RawDataExtractor {
 
 	protected Logger logger = LoggerFactory.getLogger(getClass());
-	
-	// Redis Keys ----------------------------------------
-	public static final String RAWDATA = "rawdata";
-	public static final String EXTRACTOR = "crawler.extractor";
-	// ---------------------------------------------------
-	
-	public static final String URL = "url";
-	public static final String CONTENT = "content";
-	
-	public static Gson GSON = new GsonBuilder().disableHtmlEscaping().create();
 	
 	@Autowired
 	private RedissonClient rawDataClient;
@@ -56,7 +46,7 @@ public class RawDataExtractor {
 	private String determineExtractor(String url) {
 		
 		// TODO: 后续改为规则型的匹配
-		Object extractor = rawDataClient.getMap(EXTRACTOR).get(url);
+		Object extractor = rawDataClient.getMap(Crawlers.EXTRACTOR).get(url);
 		return extractor == null ? null : extractor.toString();
 	}
 	
@@ -69,7 +59,7 @@ public class RawDataExtractor {
 		// TODO: 考虑更高效的方式，比如Listener
 		Executors.newSingleThreadScheduledExecutor().scheduleAtFixedRate(new ExtractWorker(),
 				initialDelay, period, TimeUnit.SECONDS);
-		logger.info("Start to watch {}", RAWDATA);
+		logger.info("Start to watch {}", Crawlers.RAWDATA);
 	}
 	
 	/**
@@ -82,28 +72,31 @@ public class RawDataExtractor {
 		@Override
 		public void run() {
 			
-			Object rawData = rawDataClient.getQueue(RAWDATA).poll();
+			Object rawData = rawDataClient.getQueue(Crawlers.RAWDATA).poll();
 			try {
 				if (rawData != null) {
-					Map<String, String> res = GSON.fromJson(rawData.toString(),
+					Map<String, String> res = Crawlers.GSON.fromJson(rawData.toString(),
 							new TypeToken<Map<String, String>>() {}.getType());
-					if (!res.containsKey(URL)) {
+					if (!res.containsKey(Crawlers.URL)) {
 						logger.info("Ignore illegal element={}", res.keySet());
 						return;
 					}
 					// 确定解析器，如果没有使用默认的。
-					String url = new String(ByteBufUtil.decodeHexDump(res.get(URL)), "UTF-8");
+					String url = new String(ByteBufUtil.decodeHexDump(res.get(Crawlers.URL)), "UTF-8");
 					String extractorType = determineExtractor(url);
 					logger.info("Use {} to extractor content of url={}", extractorType, url);
 					
 					Extractor extractor = context.getBean(extractorType, Extractor.class);
 					
-					String content = new String(ByteBufUtil.decodeHexDump(res.get(CONTENT)), "UTF-8");
-					boolean isSuccess = extractor.extract(url, JXDocument.create(content), res);
+					String content = new String(ByteBufUtil.decodeHexDump(res.get(Crawlers.CONTENT)), "UTF-8");
+					
+					Map<String, Object> structData = new HashMap<String, Object>();
+					structData.put(Crawlers.EXTACT_TYPE, extractorType);
+					boolean isSuccess = extractor.extract(url, JXDocument.create(content), structData);
 					logger.info("Is Done={}...extract content of url={}", isSuccess, url);
 				}
 			} catch (NoSuchBeanDefinitionException nsbde) {
-				rawDataClient.getQueue(RAWDATA).offer(rawData);
+				rawDataClient.getQueue(Crawlers.RAWDATA).offer(rawData);
 				logger.error("UnSupport extractor type and put-back.", nsbde);
 			} catch (Exception e) {
 				logger.error("Extract error.", e);

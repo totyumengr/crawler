@@ -1,0 +1,14 @@
+{
+	"name": "豆瓣读书标签",
+	"fromUrl": "https://book.douban.com/tag/%E5%B0%8F%E8%AF%B4",
+	"extractor": "paging",
+	"extractRules": {
+		"extractor.paging.list": "//li[@class='subject-item']",
+		"extractor.paging.list.record": "//div[@class='info']/h2/a/@href|//div[@class='info']/h2/a/@title",
+		"extractor.paging.bar": "//div[@class='paginator']",
+		"extractor.paging.bar.nexturl": "//span[@class='next']/a/@href"
+	},
+	"pageDown": true,
+	"landing": "no",
+	"traceLog": "no"
+}

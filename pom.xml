@@ -7,20 +7,14 @@
 	<artifactId>crawler-parent</artifactId>
 	<version>1.0</version>
 	<packaging>pom</packaging>
-
-	<modules>
-        <module>crawler-fetcher</module>
-        <module>crawler-extractor</module>
-        <module>crawler-commander</module>
-        <module>crawler-planner</module>
-        <module>crawler-worker</module>
-    </modules>
+    
     <developers>
         <developer>
             <name>mengran</name>
             <email>totyumengr@gmail.com</email>
         </developer>
     </developers>
+    
     <build>
         <plugins>
             <plugin>

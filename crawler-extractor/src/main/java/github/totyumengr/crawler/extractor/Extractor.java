@@ -16,8 +16,8 @@ public interface Extractor {
 	 * 
 	 * @param url 抓取源
 	 * @param document 抓取到的内容文档对象
-	 * @param rawData 抓取器拿到的原始结果，Value是HEX字符串
+	 * @param 解析结果
 	 * @return 是否成功提取到结果
 	 */
-	boolean extract(String url, JXDocument document, Map<String, String> rawData);
+	boolean extract(String url, JXDocument document, Map<String, Object> structData);
 }

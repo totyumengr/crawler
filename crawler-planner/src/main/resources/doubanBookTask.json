@@ -1,0 +1,11 @@
+{
+	"name": "豆瓣读书内容",
+	"fromUrl": "https://book.douban.com/subject/4913064/",
+	"extractor": "content",
+	"extractRules": {
+		"extractor.content": "//li[@class='subject-item']"
+	},
+	"pageDown": false,
+	"landing": "file",
+	"traceLog": "no"
+}

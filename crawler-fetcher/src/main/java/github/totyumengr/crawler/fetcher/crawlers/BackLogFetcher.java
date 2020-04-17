@@ -19,6 +19,7 @@ import cn.wanghaomiao.seimi.spring.common.CrawlerCache;
 import cn.wanghaomiao.seimi.struct.BodyType;
 import cn.wanghaomiao.seimi.struct.Request;
 import cn.wanghaomiao.seimi.struct.Response;
+import github.totyumengr.crawler.Crawlers;
 import io.netty.buffer.ByteBufUtil;
 
 /**
@@ -29,23 +30,13 @@ import io.netty.buffer.ByteBufUtil;
  * @author mengran7
  *
  */
-@Crawler(name = BackLogFetcher.BACKLOG, delay = 1, httpType = SeimiHttpType.OK_HTTP3, httpTimeOut = 10000)
+@Crawler(name = Crawlers.BACKLOG, delay = 1, httpType = SeimiHttpType.OK_HTTP3, httpTimeOut = 10000)
 public class BackLogFetcher extends BaseSeimiCrawler {
 
 	/**
 	 * 序列化号
 	 */
 	private static final long serialVersionUID = 5343998991786617324L;
-	
-	// Redis Keys ----------------------------------------
-	public static final String BACKLOG = "backlog";
-	public static final String RAWDATA = "rawdata";
-	public static final String PROXYPOOL = "proxypool";
-	// ---------------------------------------------------
-	
-	public static final String URL = "url";
-	public static final String CONTENT = "content";
-	public static final String EXTRACTOR = "extractor";
 	
 	private final static ThreadLocal<String> PROXY_LOCAL = new ThreadLocal<String>();
 	
@@ -75,11 +66,11 @@ public class BackLogFetcher extends BaseSeimiCrawler {
 		@Override
 		public void run() {
 			try {
-				Object url = backlogClient.getQueue(BackLogFetcher.BACKLOG).poll();
+				Object url = backlogClient.getQueue(Crawlers.BACKLOG).poll();
 				if (url != null) {
 					logger.debug("Get a fetch task, url={}", url);
 					Request req = Request.build(url.toString(), "handleResponse");
-					req.setCrawlerName(BackLogFetcher.BACKLOG);
+					req.setCrawlerName(Crawlers.BACKLOG);
 					req.setSkipDuplicateFilter(true);
 					Map<String, String> headers = new HashMap<String, String>(1);
 					headers.put("Connection", "close");
@@ -107,11 +98,11 @@ public class BackLogFetcher extends BaseSeimiCrawler {
 			// Push response to raw-data status
 			Map<String, String> rawData = new HashMap<String, String>(2);
 			String hexUrl = ByteBufUtil.hexDump(response.getUrl().getBytes("UTF-8"));
-			rawData.put(URL, hexUrl);
+			rawData.put(Crawlers.URL, hexUrl);
 			String hexContent = ByteBufUtil.hexDump(response.getContent().getBytes("UTF-8"));
-			rawData.put(CONTENT, hexContent);
-			fetcherClient.getQueue(BackLogFetcher.RAWDATA).add(rawData);
-			logger.info("Push into queue={} which response of url={}", BackLogFetcher.RAWDATA, response.getUrl());
+			rawData.put(Crawlers.CONTENT, hexContent);
+			fetcherClient.getQueue(Crawlers.RAWDATA).add(rawData);
+			logger.info("Push into queue={} which response of url={}", Crawlers.RAWDATA, response.getUrl());
 		} else {
 			logger.info("Ignore un-text response of url={}", response.getUrl());
 		}
@@ -126,7 +117,7 @@ public class BackLogFetcher extends BaseSeimiCrawler {
 		// TODO: 需要改一下，但取回任务到本地有丢失风险。
 		Executors.newSingleThreadScheduledExecutor().scheduleAtFixedRate(new FetchTask(fetcherClient),
 				initialDelay, period, TimeUnit.SECONDS);
-		logger.info("Start to watch {}", BACKLOG);
+		logger.info("Start to watch {}", Crawlers.BACKLOG);
 		
 		return new String[0];
 	}
@@ -146,7 +137,7 @@ public class BackLogFetcher extends BaseSeimiCrawler {
 		PROXY_LOCAL.set(null);
 		
 		logger.info("Fail to fetch url={}", request.getUrl());
-		fetcherClient.getQueue(BACKLOG).add(request.getUrl());
+		fetcherClient.getQueue(Crawlers.BACKLOG).add(request.getUrl());
 		logger.info("Return url={} to backlog because fail to fetch", request.getUrl());
 	}
 
@@ -159,16 +150,16 @@ public class BackLogFetcher extends BaseSeimiCrawler {
 		try {
 			String useProxyIp = PROXY_LOCAL.get();
 			if (useProxyIp == null) {
-				Object proxys = fetcherClient.getMap(PROXYPOOL).get(BACKLOG);
+				Object proxys = fetcherClient.getMap(Crawlers.PROXYPOOL).get(Crawlers.BACKLOG);
 				if (proxys != null) {
 					String[] ips = proxys.toString().split("\\|");
 					useProxyIp = ips[RandomUtils.nextInt(0, ips.length)];
 					PROXY_LOCAL.set(useProxyIp);
-					logger.info("Use proxy IP={} to build request on {}.", useProxyIp, BACKLOG);
+					logger.info("Use proxy IP={} to build request on {}.", useProxyIp, Crawlers.BACKLOG);
 					return useProxyIp;
 				}
 			} else {
-				logger.info("Use thread-local proxy IP={} to build request on {}.", useProxyIp, BACKLOG);
+				logger.info("Use thread-local proxy IP={} to build request on {}.", useProxyIp, Crawlers.BACKLOG);
 				return useProxyIp;
 			}
 			
