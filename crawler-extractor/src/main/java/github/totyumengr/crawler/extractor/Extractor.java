@@ -1,7 +1,5 @@
 package github.totyumengr.crawler.extractor;
 
-import java.util.Map;
-
 import org.seimicrawler.xpath.JXDocument;
 
 /**
@@ -19,5 +17,5 @@ public interface Extractor {
 	 * @param 解析结果
 	 * @return 是否成功提取到结果
 	 */
-	boolean extract(String url, JXDocument document, Map<String, Object> structData);
+	boolean extract(String url, JXDocument document, String extractorType);
 }

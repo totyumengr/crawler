@@ -1,0 +1,18 @@
+{
+	"name": "抓取豆瓣读书全站的图书信息",
+	"tasks": [
+		{
+			"params": "args",
+			"template": "doubanBookTagTask.json"
+		},
+		{
+			"params": "pipeline",
+			"template": "doubanBookTask.json"
+		}
+	],
+	"args": [
+		"https://book.douban.com/tag/%E5%B0%8F%E8%AF%B4",
+		"https://book.douban.com/tag/%E9%9A%8F%E7%AC%94",
+		"https://book.douban.com/tag/%E6%97%A5%E6%9C%AC%E6%96%87%E5%AD%A6"
+	]
+}

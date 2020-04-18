@@ -4,11 +4,11 @@
 	"extractor": "paging",
 	"extractRules": {
 		"extractor.paging.list": "//li[@class='subject-item']",
-		"extractor.paging.list.record": "//div[@class='info']/h2/a/@href|//div[@class='info']/h2/a/@title",
+		"extractor.paging.list.record": "//div[@class='info']/h2/a/@href",
 		"extractor.paging.bar": "//div[@class='paginator']",
 		"extractor.paging.bar.nexturl": "//span[@class='next']/a/@href"
 	},
 	"pageDown": true,
-	"landing": "no",
+	"landing": "PIPELINE",
 	"traceLog": "no"
 }

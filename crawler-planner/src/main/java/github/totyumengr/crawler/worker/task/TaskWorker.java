@@ -1,4 +1,4 @@
-package github.totyumengr.crawler.worker;
+package github.totyumengr.crawler.worker.task;
 
 import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
@@ -7,10 +7,10 @@ import java.net.URL;
 import java.net.URLEncoder;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-
-import javax.annotation.PostConstruct;
 
 import org.apache.commons.io.IOUtils;
 import org.redisson.api.RedissonClient;
@@ -46,10 +46,8 @@ public class TaskWorker {
 	private int initialDelay;
 	@Value("${worker.period}")
 	private int period;
-	@Value("${worker.task.jsonFileName}")
-	private String taskJsonFile;
 	
-	class Task {
+	public static class Task {
 		
 		private String name;
 		private String fromUrl;
@@ -108,10 +106,13 @@ public class TaskWorker {
 		private Task task;
 		private String nextPageUrl;
 		private URL url;
+		private CountDownLatch countDown;
 		
-		public NextPage(Task task) {
+		public NextPage(Task task, CountDownLatch countDown) {
 			super();
 			this.task = task;
+			this.countDown = countDown;
+			
 			this.nextPageUrl = task.getFromUrl();
 			try {
 				this.url = new URL(this.nextPageUrl);
@@ -139,7 +140,7 @@ public class TaskWorker {
 		public void run() {
 			
 			// 检查抽取完成的结果
-			Object structData = structDataClient.getMap(Crawlers.EXTRACT_DATA_PREFIX + task.getExtractor()).get(nextPageUrl);
+			Object structData = structDataClient.getMap(Crawlers.PREFIX_EXTRACT_DATA + task.getExtractor()).get(nextPageUrl);
 			if (structData != null) {
 				// 获取下一页链接
 				Map<String, Object> extractData = Crawlers.GSON.fromJson(structData.toString(),
@@ -165,27 +166,59 @@ public class TaskWorker {
 					structDataClient.getQueue(Crawlers.BACKLOG).add(encordUrl);
 					
 					// 第四步：记录关联
-					structDataClient.getMap(Crawlers.TASK_RELATED_URLS).put(task.getFromUrl(), encordUrl);
+					structDataClient.getList(Crawlers.PREFIX_TASK_RELATED_URLS + task.getFromUrl()).add(encordUrl);
 				} else {
-					// 所有分页内容都已经抓取完成。
-					structDataClient.getQueue(Crawlers.TASK_DONE).add(task.getFromUrl());
+					// 落地任务结果
+					ResultExporter exporter = applicationContext.getBean(task.getLanding(), ResultExporter.class);
+					exporter.export(task);
+					logger.info("Start exporter on fromUrl={}", task.getFromUrl());
+					
+					// 通知任务完成
+					countDown.countDown();
 				}
 			}
 		}
 	}
 	
-	@PostConstruct
-	private void init() throws Exception {
+	class CurrentPage implements Runnable {
 		
-		// TODO: 临时从本地获取，未来改为调度制
-		Resource taskFile = applicationContext.getResource("classpath:" + taskJsonFile);
+		private Task task;
+		private CountDownLatch countDown;
+		
+		public CurrentPage(Task task, CountDownLatch countDown) {
+			super();
+			this.task = task;
+			this.countDown = countDown;
+		}
+
+		@Override
+		public void run() {
+			
+			// 检查抽取完成的结果
+			Object structData = structDataClient.getMap(Crawlers.PREFIX_EXTRACT_DATA + task.getExtractor()).get(task.getFromUrl());
+			if (structData != null) {
+				// 落地任务结果
+				ResultExporter exporter = applicationContext.getBean(task.getLanding(), ResultExporter.class);
+				exporter.export(task);
+				logger.info("Start exporter on fromUrl={}", task.getFromUrl());
+				
+				countDown.countDown();
+			}
+		}
+	}
+	
+	public Task submitTask(String url, String template) throws Exception {
+		
+		// TODO: 后续改为动态配置的模板获取方式，比如Redis
+		Resource taskFile = applicationContext.getResource("classpath:" + template);
 		InputStream is = taskFile.getInputStream();
 		String taskJson = IOUtils.toString(is, "UTF-8");
-		
 		logger.info("Start task={}", taskJson);
 
 		// 获得任务配置
 		Task task = Crawlers.GSON.fromJson(taskJson, Task.class);
+		// 改变任务的fromUrl
+		task.setFromUrl(url);
 		
 		// 第一步：设置Extractor类型
 		structDataClient.getMap(Crawlers.EXTRACTOR).put(task.getFromUrl(), task.getExtractor());
@@ -195,20 +228,28 @@ public class TaskWorker {
 			structDataClient.getMap(entry.getKey()).put(task.getFromUrl(), entry.getValue());
 		}
 		
+		CountDownLatch countDown = new CountDownLatch(1);
+		
+		ScheduledExecutorService nextPageSE = Executors.newSingleThreadScheduledExecutor();
+		ScheduledExecutorService currentPagePageSE = Executors.newSingleThreadScheduledExecutor();
 		// 第三步：设置翻页逻辑
 		if (task.isPageDown()) {
-			Executors.newSingleThreadScheduledExecutor().scheduleAtFixedRate(new NextPage(task),
+			nextPageSE.scheduleAtFixedRate(new NextPage(task, countDown),
 					initialDelay, period, TimeUnit.SECONDS);
 			logger.info("Start nextpage watcher fromUrl={}", task.getFromUrl());
+		} else {
+			currentPagePageSE.scheduleAtFixedRate(new CurrentPage(task, countDown),
+					initialDelay, period, TimeUnit.SECONDS);
 		}
 		// 第四步：Launch
 		structDataClient.getQueue(Crawlers.BACKLOG).add(task.getFromUrl());
 		logger.info("Launch task fromUrl={}", task.getFromUrl());
 		
-		// 最后：落地任务结果
-		TaskResultExporter exporter = applicationContext.getBean(task.getLanding(), TaskResultExporter.class);
-		exporter.export(task.getFromUrl());
-		logger.info("Start exporter on fromUrl={}", task.getFromUrl());
+		// 当前任务执行完成
+		countDown.await();
+		nextPageSE.shutdown();
+		currentPagePageSE.shutdown();
+		
+		return task;
 	}
-	
 }

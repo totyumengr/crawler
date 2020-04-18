@@ -14,13 +14,12 @@ public interface Crawlers {
 	// Queue
 	String BACKLOG = "crawler.backlog";
 	String RAWDATA = "crawler.rawdata";
-	String TASK_DONE = "worker.task.done";
 
 	// Map
 	String PROXYPOOL = "crawler.proxypool";
 	
 	String EXTRACTOR = "crawler.extractor";
-	String EXTRACT_DATA_PREFIX = "crawler.structdata.";
+	String PREFIX_EXTRACT_DATA = "crawler.structdata.";
 	
 	String XPATH_LIST_ELEMENTS = "extractor.paging.list";
 	String XPATH_RECORD_ELEMENTS = "extractor.paging.list.record";
@@ -28,12 +27,19 @@ public interface Crawlers {
 	String XPATH_PAGINGBAR_NEXTURL_ELEMENTS = "extractor.paging.bar.nexturl";
 	String XPATH_CONTENT = "extractor.content";
 	
-	String TASK_RELATED_URLS = "worker.task.relatedurls";
+	String PREFIX_TASK_RELATED_URLS = "worker.task.relatedurls.";
+	String STORY_PIPELINE = "worker.pipeline";
 	// ---------------------------------------------------
 	
 	String URL = "url";
 	String CONTENT = "content";
-	String EXTACT_TYPE = "extractor.type";
+	
+	String TASK_TEMPLATE = "template";
+	String TASK_PARAMS = "params";
+	String TASK_PARAMS_ARGS = "args";
+	String TASK_PARAMS_PIPELINE = "pipeline";
+	
+	String EXTRACT_DATA = "structdata";
 	String PLEASE_SET_EXTRACT_XPATH = "PLEASE_SET_EXTRACT_XPATH";
 	
 	Gson GSON = new GsonBuilder().disableHtmlEscaping().create();

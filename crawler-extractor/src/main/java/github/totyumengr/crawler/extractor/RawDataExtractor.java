@@ -1,6 +1,5 @@
 package github.totyumengr.crawler.extractor;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -45,7 +44,6 @@ public class RawDataExtractor {
 	
 	private String determineExtractor(String url) {
 		
-		// TODO: 后续改为规则型的匹配
 		Object extractor = rawDataClient.getMap(Crawlers.EXTRACTOR).get(url);
 		return extractor == null ? null : extractor.toString();
 	}
@@ -90,9 +88,7 @@ public class RawDataExtractor {
 					
 					String content = new String(ByteBufUtil.decodeHexDump(res.get(Crawlers.CONTENT)), "UTF-8");
 					
-					Map<String, Object> structData = new HashMap<String, Object>();
-					structData.put(Crawlers.EXTACT_TYPE, extractorType);
-					boolean isSuccess = extractor.extract(url, JXDocument.create(content), structData);
+					boolean isSuccess = extractor.extract(url, JXDocument.create(content), extractorType);
 					logger.info("Is Done={}...extract content of url={}", isSuccess, url);
 				}
 			} catch (NoSuchBeanDefinitionException nsbde) {
