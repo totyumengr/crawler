@@ -3,7 +3,7 @@
 	"fromUrl": "https://book.douban.com/subject/4913064/",
 	"extractor": "content",
 	"extractRules": {
-		"extractor.content": "//li[@class='subject-item']"
+		"extractor.content": "//div[@class='indent']"
 	},
 	"pageDown": false,
 	"landing": "file",

@@ -22,6 +22,7 @@ public abstract class AbstractResultExporter implements ResultExporter {
 	@Autowired
 	protected RedissonClient pipelineDataClient;
 	
+	@SuppressWarnings("unchecked")
 	@Override
 	public void export(Task task) {
 
@@ -45,9 +46,7 @@ public abstract class AbstractResultExporter implements ResultExporter {
 						new TypeToken<Map<String, Object>>() {}.getType());
 				Object extractContent = extractData.get(Crawlers.EXTRACT_DATA);
 				if (extractContent != null) {
-					List<List<String>> list = Crawlers.GSON.fromJson(extractContent.toString(),
-							new TypeToken<List<List<String>>>() {}.getType());
-					extractResult.addAll(list);
+					extractResult.addAll((List<List<String>>) extractContent);
 				}
 			}
 		}

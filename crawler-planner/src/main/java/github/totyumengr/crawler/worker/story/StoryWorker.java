@@ -93,16 +93,20 @@ public class StoryWorker {
 				if (task.get(Crawlers.TASK_PARAMS).equals(Crawlers.TASK_PARAMS_ARGS)) {
 					// 从任务中获取参数，并提交
 					logger.info("Submit task={} using template={}", url, task.get(Crawlers.TASK_TEMPLATE));
-					taskWorker.submitTask(url, task.get(Crawlers.TASK_TEMPLATE));
+					taskWorker.submitTask(story.getName(), url, task.get(Crawlers.TASK_TEMPLATE));
 				}
 				if (task.get(Crawlers.TASK_PARAMS).equals(Crawlers.TASK_PARAMS_PIPELINE)) {
 					// 从上下文中获取参数，并提交
 					Object pipeline = storyDataClient.getMap(Crawlers.STORY_PIPELINE).get(url);
-					List<String> urlList = Crawlers.GSON.fromJson(pipeline.toString(),
-							new TypeToken<List<String>>() {}.getType());
-					for (String pipelineUrl: urlList) {
-						logger.info("Submit task={} using template={}", pipelineUrl, task.get(Crawlers.TASK_TEMPLATE));
-						taskWorker.submitTask(pipelineUrl, task.get(Crawlers.TASK_TEMPLATE));
+					if (pipeline == null) {
+						logger.error("Can not found data from pipeline url={}", url);
+					} else {
+						List<String> urlList = Crawlers.GSON.fromJson(pipeline.toString(),
+								new TypeToken<List<String>>() {}.getType());
+						for (String pipelineUrl: urlList) {
+							logger.info("Submit task={} using template={}", pipelineUrl, task.get(Crawlers.TASK_TEMPLATE));
+							taskWorker.submitTask(story.getName(), pipelineUrl, task.get(Crawlers.TASK_TEMPLATE));
+						}
 					}
 				}
 			}

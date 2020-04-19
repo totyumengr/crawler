@@ -9,6 +9,6 @@
 		"extractor.paging.bar.nexturl": "//span[@class='next']/a/@href"
 	},
 	"pageDown": true,
-	"landing": "PIPELINE",
+	"landing": "pipeline",
 	"traceLog": "no"
 }

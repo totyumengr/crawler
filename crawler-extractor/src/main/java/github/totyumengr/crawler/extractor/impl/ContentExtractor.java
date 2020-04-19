@@ -49,7 +49,7 @@ public class ContentExtractor extends AbstractExtractor implements Extractor {
 			List<JXNode> nodes = document.selN(xpath);
 			if (nodes != null) {
 				for (JXNode node : nodes) {
-					struct.add(node.asString());		
+					struct.add(node.toString());
 				}
 			}
 		}

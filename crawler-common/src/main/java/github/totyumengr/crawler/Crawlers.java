@@ -1,5 +1,8 @@
 package github.totyumengr.crawler;
 
+import java.net.MalformedURLException;
+import java.net.URL;
+
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
@@ -8,39 +11,58 @@ import com.google.gson.GsonBuilder;
  * @author mengran7
  *
  */
-public interface Crawlers {
+public final class Crawlers {
 
 	// Redis Keys ----------------------------------------
 	// Queue
-	String BACKLOG = "crawler.backlog";
-	String RAWDATA = "crawler.rawdata";
+	public static final String BACKLOG = "crawler.backlog";
+	public static final String RAWDATA = "crawler.rawdata";
 
 	// Map
-	String PROXYPOOL = "crawler.proxypool";
+	public static final String PROXYPOOL = "crawler.proxypool";
 	
-	String EXTRACTOR = "crawler.extractor";
-	String PREFIX_EXTRACT_DATA = "crawler.structdata.";
+	public static final String EXTRACTOR = "crawler.extractor";
+	public static final String PREFIX_EXTRACT_DATA = "crawler.structdata.";
 	
-	String XPATH_LIST_ELEMENTS = "extractor.paging.list";
-	String XPATH_RECORD_ELEMENTS = "extractor.paging.list.record";
-	String XPATH_PAGINGBAR_ELEMENTS = "extractor.paging.bar";
-	String XPATH_PAGINGBAR_NEXTURL_ELEMENTS = "extractor.paging.bar.nexturl";
-	String XPATH_CONTENT = "extractor.content";
+	public static final String XPATH_LIST_ELEMENTS = "extractor.paging.list";
+	public static final String XPATH_RECORD_ELEMENTS = "extractor.paging.list.record";
+	public static final String XPATH_PAGINGBAR_ELEMENTS = "extractor.paging.bar";
+	public static final String XPATH_PAGINGBAR_NEXTURL_ELEMENTS = "extractor.paging.bar.nexturl";
+	public static final String XPATH_CONTENT = "extractor.content";
 	
-	String PREFIX_TASK_RELATED_URLS = "worker.task.relatedurls.";
-	String STORY_PIPELINE = "worker.pipeline";
+	public static final String PREFIX_TASK_RELATED_URLS = "worker.task.relatedurls.";
+	public static final String STORY_PIPELINE = "worker.pipeline";
 	// ---------------------------------------------------
 	
-	String URL = "url";
-	String CONTENT = "content";
+	public static final String URL = "url";
+	public static final String CONTENT = "content";
 	
-	String TASK_TEMPLATE = "template";
-	String TASK_PARAMS = "params";
-	String TASK_PARAMS_ARGS = "args";
-	String TASK_PARAMS_PIPELINE = "pipeline";
+	public static final String TASK_TEMPLATE = "template";
+	public static final String TASK_PARAMS = "params";
+	public static final String TASK_PARAMS_ARGS = "args";
+	public static final String TASK_PARAMS_PIPELINE = "pipeline";
 	
-	String EXTRACT_DATA = "structdata";
-	String PLEASE_SET_EXTRACT_XPATH = "PLEASE_SET_EXTRACT_XPATH";
+	public static final String EXTRACT_DATA = "structdata";
+	public static final String PLEASE_SET_EXTRACT_XPATH = "PLEASE_SET_EXTRACT_XPATH";
 	
-	Gson GSON = new GsonBuilder().disableHtmlEscaping().create();
+	public static final Gson GSON = new GsonBuilder().disableHtmlEscaping().create();
+	
+	public static String prepareUrl(String fullPath, String partPath) {
+		
+		URL url = null;
+		try {
+			url = new URL(fullPath);
+		} catch (MalformedURLException e) {
+			// Ignore
+			return partPath;
+		}
+		
+		String forReturn = partPath;
+		if (!partPath.startsWith(fullPath)) {
+			forReturn = url.getProtocol() + "://" + url.getHost()
+				+ (url.getPort() < 0 ? "" : url.getPort()) + partPath;
+		}
+		
+		return forReturn;
+	}
 }

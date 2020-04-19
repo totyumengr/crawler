@@ -1,10 +1,6 @@
 package github.totyumengr.crawler.worker.task;
 
 import java.io.InputStream;
-import java.io.UnsupportedEncodingException;
-import java.net.MalformedURLException;
-import java.net.URL;
-import java.net.URLEncoder;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.CountDownLatch;
@@ -57,6 +53,20 @@ public class TaskWorker {
 		private String landing;
 		private String traceLog;
 		
+		private String storyName;
+		
+		public String getStoryName() {
+			return storyName;
+		}
+		public void setStoryName(String storyName) {
+			this.storyName = storyName;
+		}
+		public Map<String, String> getExtractRules() {
+			return extractRules;
+		}
+		public void setExtractRules(Map<String, String> extractRules) {
+			this.extractRules = extractRules;
+		}
 		public String getName() {
 			return name;
 		}
@@ -74,12 +84,6 @@ public class TaskWorker {
 		}
 		public void setExtractor(String extractor) {
 			this.extractor = extractor;
-		}
-		public Map<String, String> getExtractRules() {
-			return extractRules;
-		}
-		public void setExtractorRules(Map<String, String> extractRules) {
-			this.extractRules = extractRules;
 		}
 		public boolean isPageDown() {
 			return pageDown;
@@ -105,7 +109,6 @@ public class TaskWorker {
 		
 		private Task task;
 		private String nextPageUrl;
-		private URL url;
 		private CountDownLatch countDown;
 		
 		public NextPage(Task task, CountDownLatch countDown) {
@@ -114,26 +117,6 @@ public class TaskWorker {
 			this.countDown = countDown;
 			
 			this.nextPageUrl = task.getFromUrl();
-			try {
-				this.url = new URL(this.nextPageUrl);
-			} catch (MalformedURLException e) {
-				// Ignore
-			}
-		}
-		
-		private String prepareUrl(String nextPageUrl) {
-			
-			if (!nextPageUrl.startsWith(this.nextPageUrl)) {
-				nextPageUrl = this.url.getProtocol() + "://" + this.url.getHost()
-					+ (this.url.getPort() < 0 ? "/" : this.url.getPort() + "/") + nextPageUrl;
-			}
-			
-			try {
-				return URLEncoder.encode(nextPageUrl, "UTF-8");
-			} catch (UnsupportedEncodingException e) {
-			}
-			
-			return nextPageUrl;
 		}
 		
 		@Override
@@ -149,30 +132,22 @@ public class TaskWorker {
 						extractData.get(Crawlers.XPATH_PAGINGBAR_NEXTURL_ELEMENTS).toString() : null;
 				// 有效的链接	
 				if (nextPageUrl != null) {
-					
-					// 处理成完整的URL，并提交到需求池
-					String encordUrl = prepareUrl(nextPageUrl);
-					this.nextPageUrl = encordUrl;
+					this.nextPageUrl = nextPageUrl;
 					
 					// 第一步：设置Extractor类型
-					structDataClient.getMap(Crawlers.EXTRACTOR).put(encordUrl, task.getExtractor());
+					structDataClient.getMap(Crawlers.EXTRACTOR).put(nextPageUrl, task.getExtractor());
 					
 					// 第二步：设置提取器的规则
 					for (Entry<String, String> entry : task.getExtractRules().entrySet()) {
-						structDataClient.getMap(entry.getKey()).put(encordUrl, entry.getValue());
+						structDataClient.getMap(entry.getKey()).put(nextPageUrl, entry.getValue());
 					}
 					
-					// 第三步：去抓取下一页
-					structDataClient.getQueue(Crawlers.BACKLOG).add(encordUrl);
+					// 第三步：记录关联
+					structDataClient.getList(Crawlers.PREFIX_TASK_RELATED_URLS + task.getFromUrl()).add(nextPageUrl);
 					
-					// 第四步：记录关联
-					structDataClient.getList(Crawlers.PREFIX_TASK_RELATED_URLS + task.getFromUrl()).add(encordUrl);
+					// 第四步：去抓取下一页
+					structDataClient.getQueue(Crawlers.BACKLOG).add(nextPageUrl);
 				} else {
-					// 落地任务结果
-					ResultExporter exporter = applicationContext.getBean(task.getLanding(), ResultExporter.class);
-					exporter.export(task);
-					logger.info("Start exporter on fromUrl={}", task.getFromUrl());
-					
 					// 通知任务完成
 					countDown.countDown();
 				}
@@ -197,17 +172,12 @@ public class TaskWorker {
 			// 检查抽取完成的结果
 			Object structData = structDataClient.getMap(Crawlers.PREFIX_EXTRACT_DATA + task.getExtractor()).get(task.getFromUrl());
 			if (structData != null) {
-				// 落地任务结果
-				ResultExporter exporter = applicationContext.getBean(task.getLanding(), ResultExporter.class);
-				exporter.export(task);
-				logger.info("Start exporter on fromUrl={}", task.getFromUrl());
-				
 				countDown.countDown();
 			}
 		}
 	}
 	
-	public Task submitTask(String url, String template) throws Exception {
+	public Task submitTask(String storyName, String url, String template) throws Exception {
 		
 		// TODO: 后续改为动态配置的模板获取方式，比如Redis
 		Resource taskFile = applicationContext.getResource("classpath:" + template);
@@ -219,6 +189,7 @@ public class TaskWorker {
 		Task task = Crawlers.GSON.fromJson(taskJson, Task.class);
 		// 改变任务的fromUrl
 		task.setFromUrl(url);
+		task.setStoryName(storyName);
 		
 		// 第一步：设置Extractor类型
 		structDataClient.getMap(Crawlers.EXTRACTOR).put(task.getFromUrl(), task.getExtractor());
@@ -247,6 +218,12 @@ public class TaskWorker {
 		
 		// 当前任务执行完成
 		countDown.await();
+		
+		// 第五步：落地任务结果
+		ResultExporter exporter = applicationContext.getBean(task.getLanding(), ResultExporter.class);
+		logger.info("Start exporter on fromUrl={}", task.getFromUrl());
+		exporter.export(task);
+		
 		nextPageSE.shutdown();
 		currentPagePageSE.shutdown();
 		

@@ -44,7 +44,11 @@ public class PagingExtractor extends AbstractExtractor implements Extractor {
 		} else {
 			JXNode bar = document.selNOne(barXpath.toString());
 			String nextPageUrl = extractPagingBar(url, bar);
-			extraData.put(Crawlers.XPATH_PAGINGBAR_NEXTURL_ELEMENTS, nextPageUrl);
+			if (nextPageUrl != null) {
+				String fullPathNextPageUrl = Crawlers.prepareUrl(url, nextPageUrl);
+				logger.info("Convert original nextPageUrl={} to {}", nextPageUrl, fullPathNextPageUrl);
+				extraData.put(Crawlers.XPATH_PAGINGBAR_NEXTURL_ELEMENTS, fullPathNextPageUrl);
+			}
 		}
 		
 		return extraData;
@@ -90,6 +94,11 @@ public class PagingExtractor extends AbstractExtractor implements Extractor {
 	protected String extractPagingBar(String url, JXNode pagingNode) {
 		
 		// 解析当前页标识，并且发起下一页的抓取请求，并且设置解析器类型
+		if (pagingNode == null) {
+			logger.info("Can not found pagingNode and return null");
+			return null;
+		}
+		
 		Object nextUrl = extractDataClient.getMap(Crawlers.XPATH_PAGINGBAR_NEXTURL_ELEMENTS).get(url);
 		if (nextUrl == null) {
 			logger.info("{} Return because can not found {} of url={}", Crawlers.PLEASE_SET_EXTRACT_XPATH, Crawlers.XPATH_PAGINGBAR_NEXTURL_ELEMENTS, url);
