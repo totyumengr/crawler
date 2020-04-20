@@ -5,7 +5,7 @@
 
     <artifactId>crawler-extractor</artifactId>
 	<packaging>jar</packaging>
-	<version>1.0-SNAPSHOT</version>
+	<version>1.0.0</version>
 	<name>crawler-extractor</name>
 	<parent>
 		<groupId>org.springframework.boot</groupId>
