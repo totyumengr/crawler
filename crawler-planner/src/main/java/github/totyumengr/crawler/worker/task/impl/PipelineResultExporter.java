@@ -1,5 +1,6 @@
 package github.totyumengr.crawler.worker.task.impl;
 
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -22,7 +23,16 @@ public class PipelineResultExporter extends AbstractResultExporter implements Re
 		
 		List<String> extractUrl = new ArrayList<String>();
 		for (List<String> d : extractData) {
+			if (d.size() < 1) {
+				continue;
+			}
 			String url = d.get(0);
+			try {
+				new URL(url);
+			} catch (Exception e) {
+				logger.error("Ignore {}, do not put into {}", url, Crawlers.STORY_PIPELINE);
+				continue;
+			}
 			// TODO: 这里需要设计下。除了URL其他的数据怎么办？
 			extractUrl.add(url);
 		}

@@ -1,7 +1,12 @@
 package github.totyumengr.crawler.fetcher.crawlers;
 
+import java.net.URL;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
@@ -12,8 +17,11 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 
+import com.google.gson.reflect.TypeToken;
+
 import cn.wanghaomiao.seimi.annotation.Crawler;
 import cn.wanghaomiao.seimi.def.BaseSeimiCrawler;
+import cn.wanghaomiao.seimi.http.SeimiCookie;
 import cn.wanghaomiao.seimi.http.SeimiHttpType;
 import cn.wanghaomiao.seimi.spring.common.CrawlerCache;
 import cn.wanghaomiao.seimi.struct.BodyType;
@@ -47,6 +55,10 @@ public class BackLogFetcher extends BaseSeimiCrawler {
 	private int initialDelay;
 	@Value("${backlog.period}")
 	private int period;
+	@Value("${backlog.proxy.authName}")
+	private String proxyAuthenticatorName;
+	@Value("${backlog.proxy.authPassword}")
+	private String proxyAuthenticatorPassword;
 	
 	/**
 	 * 真正去执行的抓取任务类
@@ -65,6 +77,7 @@ public class BackLogFetcher extends BaseSeimiCrawler {
 
 		@Override
 		public void run() {
+			
 			try {
 				Object url = backlogClient.getQueue(Crawlers.BACKLOG).poll();
 				if (url != null) {
@@ -72,9 +85,17 @@ public class BackLogFetcher extends BaseSeimiCrawler {
 					Request req = Request.build(url.toString(), "handleResponse");
 					req.setCrawlerName(Crawlers.BACKLOG);
 					req.setSkipDuplicateFilter(true);
-					Map<String, String> headers = new HashMap<String, String>(1);
-					headers.put("Connection", "close");
-					req.setHeader(headers);
+
+					Object cookieList = backlogClient.getMap(Crawlers.PREFIX_COOKIES).get(req.getUrl());
+					if (cookieList != null) {
+						List<SeimiCookie> seimiCookie = Crawlers.GSON.fromJson(cookieList.toString(),
+					            new TypeToken<List<SeimiCookie>>() {}.getType());
+					    req.setSeimiCookies(seimiCookie);
+					}
+
+					req.setProxyAuthenticatorName(proxyAuthenticatorName);
+					req.setProxyAuthenticatorPassword(proxyAuthenticatorPassword);
+
 					CrawlerCache.consumeRequest(req);
 					logger.info("Submit a fetch task, url={}", url);
 				}
@@ -93,6 +114,51 @@ public class BackLogFetcher extends BaseSeimiCrawler {
 		// Clear thread-local
 		PROXY_LOCAL.set(null);
 		
+		boolean maybe302 = false;
+		try {
+			URL o = new URL(response.getUrl());
+			URL r = new URL(response.getRealUrl());
+			if (o.getHost() != r.getHost() || o.getPath() != r.getPath()) {
+				logger.info("Found 302 event, original url]{}, realUrl={}", response.getUrl(), response.getRealUrl());
+				maybe302 = true;
+			}
+ 		} catch (Exception e) {
+ 			logger.error("Ignore 302 check...");
+ 		}
+		boolean needRepush = false;
+		boolean needResubmit = false;
+		Map<String, String> needAppendParams = new LinkedHashMap<String, String>();
+		if (maybe302) {
+			List<SeimiCookie> seimiCookies = response.getRequest().getSeimiCookies();
+			Map<String, String> params = Crawlers.parseParams(response.getRealUrl());
+			Map<String, String> oriParams = Crawlers.parseParams(response.getUrl());
+			if (seimiCookies != null) {
+				// Cookie问题
+				for (SeimiCookie cookie : seimiCookies) {
+					if (params.containsKey(cookie.getName())) {
+						cookie.setValue(params.get(cookie.getName()));
+						needRepush = true;
+					}
+				}
+			}
+			// 将多出来的参数附加到原参数列表中
+			for (Entry<String, String> entry : params.entrySet()) {
+				if (!oriParams.containsKey(entry.getKey())) {
+					needAppendParams.put(entry.getKey(), entry.getValue());
+					needResubmit = true;
+				}
+			}
+		}
+
+		String newUrl = "";
+		List<SeimiCookie> newCookie = new ArrayList<SeimiCookie>();
+		if (needRepush && !needResubmit) {
+			// 直接Re-Send request操作，因为URL没有变化
+			CrawlerCache.consumeRequest(response.getRequest());
+			logger.info("Because 302 cookie updated, re-submit a fetch task, url={}", response.getUrl());
+			return;
+		}
+		
 		logger.info("Success fetch url={}", response.getUrl());
 		if (BodyType.TEXT.equals(response.getBodyType())) {
 			// Push response to raw-data status
@@ -101,6 +167,15 @@ public class BackLogFetcher extends BaseSeimiCrawler {
 			rawData.put(Crawlers.URL, hexUrl);
 			String hexContent = ByteBufUtil.hexDump(response.getContent().getBytes("UTF-8"));
 			rawData.put(Crawlers.CONTENT, hexContent);
+			
+			if (needRepush) {
+				newUrl = Crawlers.appendParams(response.getRequest().getUrl(), needAppendParams);
+				newCookie = response.getRequest().getSeimiCookies();
+				logger.info("Repost request because 302 change cookie.");
+				rawData.put(Crawlers.REPOST, ByteBufUtil.hexDump(newUrl.getBytes("UTF-8")));
+				rawData.put(Crawlers.REPOST_COOKIE, ByteBufUtil.hexDump(newCookie.toString().getBytes("UTF-8")));
+			}
+			
 			fetcherClient.getQueue(Crawlers.RAWDATA).add(rawData);
 			logger.info("Push into queue={} which response of url={}", Crawlers.RAWDATA, response.getUrl());
 		} else {
@@ -115,7 +190,7 @@ public class BackLogFetcher extends BaseSeimiCrawler {
 	public String[] startUrls() {
 		
 		// TODO: 需要改一下，但取回任务到本地有丢失风险。
-		Executors.newSingleThreadScheduledExecutor().scheduleAtFixedRate(new FetchTask(fetcherClient),
+		Executors.newSingleThreadScheduledExecutor().scheduleWithFixedDelay(new FetchTask(fetcherClient),
 				initialDelay, period, TimeUnit.SECONDS);
 		logger.info("Start to watch {}", Crawlers.BACKLOG);
 		

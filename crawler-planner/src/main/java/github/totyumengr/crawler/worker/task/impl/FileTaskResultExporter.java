@@ -42,7 +42,7 @@ public class FileTaskResultExporter extends AbstractResultExporter implements Re
 			for (List<String> data : extractData) {
 				c.addAll(data);
 			}
-			FileUtils.writeLines(taskFile, c, "UTF-8", true);
+			FileUtils.writeLines(taskFile, c, true);
 		} catch (IOException e) {
 			logger.error("Error when try to export task result url={}", task.getFromUrl());
 		}
@@ -54,7 +54,7 @@ public class FileTaskResultExporter extends AbstractResultExporter implements Re
 			URL u = new URL(url);
 			String path = u.getPath().replace("/", "");
 			String query = (u.getQuery() == null ? "" : u.getQuery());
-			return path + "-" + query;
+			return path + (query != "" ? "-" + query : "");
 		} catch (MalformedURLException e) {
 			return UUID.randomUUID().toString();
 		}

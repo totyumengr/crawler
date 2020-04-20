@@ -2,6 +2,10 @@ package github.totyumengr.crawler;
 
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Map.Entry;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -23,6 +27,7 @@ public final class Crawlers {
 	
 	public static final String EXTRACTOR = "crawler.extractor";
 	public static final String PREFIX_EXTRACT_DATA = "crawler.structdata.";
+	public static final String PREFIX_COOKIES = "fetcher.cookies.";
 	
 	public static final String XPATH_LIST_ELEMENTS = "extractor.paging.list";
 	public static final String XPATH_RECORD_ELEMENTS = "extractor.paging.list.record";
@@ -36,6 +41,8 @@ public final class Crawlers {
 	
 	public static final String URL = "url";
 	public static final String CONTENT = "content";
+	public static final String REPOST = "repost";
+	public static final String REPOST_COOKIE = "repost.cookie";
 	
 	public static final String TASK_TEMPLATE = "template";
 	public static final String TASK_PARAMS = "params";
@@ -57,12 +64,75 @@ public final class Crawlers {
 			return partPath;
 		}
 		
+		String domain = url.getProtocol() + "://" + url.getHost()
+			+ (url.getPort() < 0 ? "" : url.getPort());
 		String forReturn = partPath;
-		if (!partPath.startsWith(fullPath)) {
-			forReturn = url.getProtocol() + "://" + url.getHost()
-				+ (url.getPort() < 0 ? "" : url.getPort()) + partPath;
+		if (!partPath.contains(url.getHost())) {
+			forReturn = domain + partPath;
+		} else {
+			int index = partPath.indexOf(url.getHost());
+			forReturn = domain + partPath.substring(index + url.getHost().length());
 		}
 		
 		return forReturn;
+	}
+	
+	public static Map<String, String> parseParams(String url) {
+		
+		Map<String, String> params = new HashMap<String, String>();
+		try {
+			URL u = new URL(url);
+			String query = u.getQuery();
+			if (query != null) {
+				String[] pair = query.split("&");
+				for (String p : pair) {
+					String[] kv = p.split("=");
+					params.put(kv[0], kv[1]);
+				}
+			}
+		} catch (MalformedURLException e) {
+			// Ignore
+		}
+		
+		return params;
+	}
+	
+	public static String appendParams(String url, Map<String, String> needAppend) {
+		
+		try {
+			URL u = new URL(url);
+			String query = u.getQuery();
+			String append = "";
+			if (query == null) {
+				append += "?"; 
+			}
+			for (Entry<String, String> entry : needAppend.entrySet()) {
+				append += "&" + entry.getKey() + "=" + entry.getValue();
+			}
+			return url + append;
+		} catch (MalformedURLException e) {
+			// Ignore
+			return url;
+		}
+	}
+	
+	public static void main(String[] args) {
+		
+		String url = prepareUrl("https://www.baidu.com?a=1", "//www.baidu.com/b=2");
+		System.out.println(url);
+		
+		url = prepareUrl("https://www.baidu.com?a=1", "/b=2");
+		System.out.println(url);
+		
+		Map<String, String> p = parseParams("http://www.baidu.com/redirect.html?a=1&b=2");
+		System.out.println(p);
+		
+		Map<String, String> append = new LinkedHashMap<String, String>();
+		append.put("1", "2");
+		url = appendParams("http://www.baidu.com?a=b", append);
+		System.out.println(url);
+		
+		url = appendParams("http://www.baidu.com", append);
+		System.out.println(url);
 	}
 }

@@ -27,5 +27,12 @@ public class NextPageTest {
 		Assert.assertEquals("", url2.getPath());
 		Assert.assertEquals(null, url2.getQuery());
 	}
+	
+	@Test
+	public void testUrl() throws Exception {
+		
+		URL url = new URL("http://www.baidu.com/redirect.html?abc=23r&dsfsf=3r2432");
+		Assert.assertEquals("abc=23r&dsfsf=3r2432", url.getQuery());
+	}
 
 }

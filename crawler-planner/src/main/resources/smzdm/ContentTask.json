@@ -1,0 +1,12 @@
+{
+	"name": "文章内容",
+	"fromUrl": "从Story传递",
+	"extractor": "content",
+	"extractRules": {
+		"extractor.content": "//div[@class='title-box']/h1|//div[@class='title-box']/div[@class='price']/span|//article[@class='txt-detail']"
+	},
+	"pageDown": false,
+	"pageDownCount": -1,
+	"landing": "file",
+	"traceLog": "no"
+}

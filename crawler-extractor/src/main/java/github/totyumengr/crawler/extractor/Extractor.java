@@ -17,5 +17,5 @@ public interface Extractor {
 	 * @param 解析结果
 	 * @return 是否成功提取到结果
 	 */
-	boolean extract(String url, JXDocument document, String extractorType);
+	boolean extract(String url, JXDocument document, String extractorType, String repostUrl, String repostCookie);
 }

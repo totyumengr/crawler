@@ -84,11 +84,21 @@ public class RawDataExtractor {
 					String extractorType = determineExtractor(url);
 					logger.info("Use {} to extractor content of url={}", extractorType, url);
 					
+					// 处理REPOST
+					String repostUrl = null;
+					String repostCookie = null;
+					if (res.containsKey(Crawlers.REPOST)) {
+						repostUrl = new String(ByteBufUtil.decodeHexDump(res.get(Crawlers.REPOST)), "UTF-8");
+						repostCookie = new String(ByteBufUtil.decodeHexDump(res.get(Crawlers.REPOST_COOKIE)), "UTF-8");
+					}
+					
 					Extractor extractor = context.getBean(extractorType, Extractor.class);
 					
 					String content = new String(ByteBufUtil.decodeHexDump(res.get(Crawlers.CONTENT)), "UTF-8");
+					logger.info("extract from...");
+					logger.info("{}", content);
 					
-					boolean isSuccess = extractor.extract(url, JXDocument.create(content), extractorType);
+					boolean isSuccess = extractor.extract(url, JXDocument.create(content), extractorType, repostUrl, repostCookie);
 					logger.info("Is Done={}...extract content of url={}", isSuccess, url);
 				}
 			} catch (NoSuchBeanDefinitionException nsbde) {

@@ -1,6 +1,7 @@
 package github.totyumengr.crawler.worker.task;
 
 import java.io.InputStream;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.CountDownLatch;
@@ -52,14 +53,20 @@ public class TaskWorker {
 		private boolean pageDown;
 		private String landing;
 		private String traceLog;
+		private List<Map<String, String>> cookies;
+		private int pageDownCount;
 		
-		private String storyName;
-		
-		public String getStoryName() {
-			return storyName;
+		public int getPageDownCount() {
+			return pageDownCount;
 		}
-		public void setStoryName(String storyName) {
-			this.storyName = storyName;
+		public void setPageDownCount(int pageDownCount) {
+			this.pageDownCount = pageDownCount;
+		}
+		public List<Map<String, String>> getCookies() {
+			return cookies;
+		}
+		public void setCookies(List<Map<String, String>> cookies) {
+			this.cookies = cookies;
 		}
 		public Map<String, String> getExtractRules() {
 			return extractRules;
@@ -103,6 +110,15 @@ public class TaskWorker {
 		public void setTraceLog(String traceLog) {
 			this.traceLog = traceLog;
 		}
+		
+		private String storyName;
+		
+		public String getStoryName() {
+			return storyName;
+		}
+		public void setStoryName(String storyName) {
+			this.storyName = storyName;
+		}
 	}
 	
 	class NextPage implements Runnable {
@@ -110,6 +126,7 @@ public class TaskWorker {
 		private Task task;
 		private String nextPageUrl;
 		private CountDownLatch countDown;
+		private int pagingCnt;
 		
 		public NextPage(Task task, CountDownLatch countDown) {
 			super();
@@ -117,6 +134,7 @@ public class TaskWorker {
 			this.countDown = countDown;
 			
 			this.nextPageUrl = task.getFromUrl();
+			this.pagingCnt = task.getPageDownCount();
 		}
 		
 		@Override
@@ -128,25 +146,29 @@ public class TaskWorker {
 				// 获取下一页链接
 				Map<String, Object> extractData = Crawlers.GSON.fromJson(structData.toString(),
 						new TypeToken<Map<String, Object>>() {}.getType());
+				
+				// 处理Repost
+				String repostUrl = extractData.containsKey(Crawlers.REPOST) ? 
+						extractData.get(Crawlers.REPOST).toString() : null;
+//				String repostCookie = extractData.containsKey(Crawlers.REPOST_COOKIE) ? 
+//						extractData.get(Crawlers.REPOST_COOKIE).toString() : null;
+				if (repostUrl != null && repostUrl.length() > 0) {
+					// 更新Cookie
+				}
+						
 				String nextPageUrl = extractData.containsKey(Crawlers.XPATH_PAGINGBAR_NEXTURL_ELEMENTS) ? 
 						extractData.get(Crawlers.XPATH_PAGINGBAR_NEXTURL_ELEMENTS).toString() : null;
 				// 有效的链接	
-				if (nextPageUrl != null) {
+				if (nextPageUrl != null && pagingCnt >= 1) {
 					this.nextPageUrl = nextPageUrl;
-					
-					// 第一步：设置Extractor类型
-					structDataClient.getMap(Crawlers.EXTRACTOR).put(nextPageUrl, task.getExtractor());
-					
-					// 第二步：设置提取器的规则
-					for (Entry<String, String> entry : task.getExtractRules().entrySet()) {
-						structDataClient.getMap(entry.getKey()).put(nextPageUrl, entry.getValue());
-					}
-					
 					// 第三步：记录关联
 					structDataClient.getList(Crawlers.PREFIX_TASK_RELATED_URLS + task.getFromUrl()).add(nextPageUrl);
+
+					// 提交任务
+					doSubmitTask(nextPageUrl, task);
 					
-					// 第四步：去抓取下一页
-					structDataClient.getQueue(Crawlers.BACKLOG).add(nextPageUrl);
+					// 第五步：记录翻页次数
+					pagingCnt--;
 				} else {
 					// 通知任务完成
 					countDown.countDown();
@@ -177,6 +199,26 @@ public class TaskWorker {
 		}
 	}
 	
+	private void doSubmitTask(String url, Task task) {
+		
+		// 第一步：设置Extractor类型
+		structDataClient.getMap(Crawlers.EXTRACTOR).put(url, task.getExtractor());
+		
+		// 第二步：设置提取器的规则
+		for (Entry<String, String> entry : task.getExtractRules().entrySet()) {
+			structDataClient.getMap(entry.getKey()).put(url, entry.getValue());
+		}
+		
+		// 增加Cookie设置
+		if (task.getCookies() != null) {
+			structDataClient.getMap(Crawlers.PREFIX_COOKIES).put(url, Crawlers.GSON.toJson(task.getCookies()));
+		}
+		
+		// 第四步：Launch
+		structDataClient.getQueue(Crawlers.BACKLOG).add(url);
+		logger.info("Launch task fromUrl={}", url);
+	}
+	
 	public Task submitTask(String storyName, String url, String template) throws Exception {
 		
 		// TODO: 后续改为动态配置的模板获取方式，比如Redis
@@ -191,14 +233,6 @@ public class TaskWorker {
 		task.setFromUrl(url);
 		task.setStoryName(storyName);
 		
-		// 第一步：设置Extractor类型
-		structDataClient.getMap(Crawlers.EXTRACTOR).put(task.getFromUrl(), task.getExtractor());
-		
-		// 第二步：设置提取器的规则
-		for (Entry<String, String> entry : task.getExtractRules().entrySet()) {
-			structDataClient.getMap(entry.getKey()).put(task.getFromUrl(), entry.getValue());
-		}
-		
 		CountDownLatch countDown = new CountDownLatch(1);
 		
 		ScheduledExecutorService nextPageSE = Executors.newSingleThreadScheduledExecutor();
@@ -212,9 +246,9 @@ public class TaskWorker {
 			currentPagePageSE.scheduleAtFixedRate(new CurrentPage(task, countDown),
 					initialDelay, period, TimeUnit.SECONDS);
 		}
-		// 第四步：Launch
-		structDataClient.getQueue(Crawlers.BACKLOG).add(task.getFromUrl());
-		logger.info("Launch task fromUrl={}", task.getFromUrl());
+		
+		// 为Task做一些设置然后提交
+		doSubmitTask(task.getFromUrl(), task);
 		
 		// 当前任务执行完成
 		countDown.await();

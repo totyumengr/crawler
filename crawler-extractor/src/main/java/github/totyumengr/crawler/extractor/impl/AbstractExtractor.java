@@ -24,12 +24,16 @@ public abstract class AbstractExtractor implements Extractor {
 	protected abstract Map<String, Object> doExtract(String url, JXDocument document, List<List<String>> coreData);
 
 	@Override
-	public boolean extract(String url, JXDocument document, String extractor) {
+	public boolean extract(String url, JXDocument document, String extractor, String repostUrl, String repostCookie) {
 		
 		try {
 			Map<String, Object> structData = new HashMap<String, Object>();
 			List<List<String>> coreData = new ArrayList<List<String>>();
 			structData.put(Crawlers.EXTRACT_DATA, coreData);
+			if (repostUrl != null) {
+				structData.put(Crawlers.REPOST, repostUrl);
+				structData.put(Crawlers.REPOST_COOKIE, repostCookie);
+			}
 			
 			// 执行模板方法
 			Map<String, Object> extraData = doExtract(url, document, coreData);
