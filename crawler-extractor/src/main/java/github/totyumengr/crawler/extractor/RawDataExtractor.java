@@ -55,7 +55,7 @@ public class RawDataExtractor {
 	private void init() {
 		
 		// TODO: 考虑更高效的方式，比如Listener
-		Executors.newSingleThreadScheduledExecutor().scheduleAtFixedRate(new ExtractWorker(),
+		Executors.newSingleThreadScheduledExecutor().scheduleWithFixedDelay(new ExtractWorker(),
 				initialDelay, period, TimeUnit.SECONDS);
 		logger.info("Start to watch {}", Crawlers.RAWDATA);
 	}

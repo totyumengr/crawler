@@ -53,14 +53,15 @@ public abstract class AbstractResultExporter implements ResultExporter {
 		logger.info("Found extracted result data count {}", extractResult.size());
 		
 		// 做结果内容导出
-		doExport(task, extractResult);
+		doExport(task, extractResult, allUrl);
 	}
 	
 	/**
 	 * 
 	 * @param task 导出Target对象
 	 * @param extractData 任务关联的所有Url的抽取数据，包括{@code Task#getFromUrl()}
+	 * @param allUrl 当前任务相关的URL，比如分页的URL
 	 */
-	public abstract void doExport(Task task, List<List<String>> extractData);
+	public abstract void doExport(Task task, List<List<String>> extractData, List<String> allUrl);
 
 }

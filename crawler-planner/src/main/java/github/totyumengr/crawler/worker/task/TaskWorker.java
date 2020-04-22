@@ -52,9 +52,10 @@ public class TaskWorker {
 		private Map<String, String> extractRules;
 		private boolean pageDown;
 		private String landing;
-		private String traceLog;
 		private List<Map<String, String>> cookies;
 		private int pageDownCount;
+		// 相当于Bin-log
+		private boolean traceLog = true;
 		
 		public int getPageDownCount() {
 			return pageDownCount;
@@ -104,15 +105,31 @@ public class TaskWorker {
 		public void setLanding(String landing) {
 			this.landing = landing;
 		}
-		public String getTraceLog() {
+		
+		public boolean isTraceLog() {
 			return traceLog;
 		}
-		public void setTraceLog(String traceLog) {
+		public void setTraceLog(boolean traceLog) {
 			this.traceLog = traceLog;
 		}
-		
+
+		// ------------------------ 这几个属性不是预定义的，内部处理用
 		private String storyName;
+		private String logUrl;
+		private String repostUrl;
 		
+		public String getRepostUrl() {
+			return repostUrl;
+		}
+		public void setRepostUrl(String repostUrl) {
+			this.repostUrl = repostUrl;
+		}
+		public String getLogUrl() {
+			return logUrl;
+		}
+		public void setLogUrl(String logUrl) {
+			this.logUrl = logUrl;
+		}
 		public String getStoryName() {
 			return storyName;
 		}
@@ -150,10 +167,22 @@ public class TaskWorker {
 				// 处理Repost
 				String repostUrl = extractData.containsKey(Crawlers.REPOST) ? 
 						extractData.get(Crawlers.REPOST).toString() : null;
-//				String repostCookie = extractData.containsKey(Crawlers.REPOST_COOKIE) ? 
-//						extractData.get(Crawlers.REPOST_COOKIE).toString() : null;
+				String repostCookie = extractData.containsKey(Crawlers.REPOST_COOKIE) ? 
+						extractData.get(Crawlers.REPOST_COOKIE).toString() : null;
+				// Cancel当前的任务，更新后重新Launch
 				if (repostUrl != null && repostUrl.length() > 0) {
 					// 更新Cookie
+					task.setRepostUrl(repostUrl);
+//					task.setFromUrl(repostUrl);
+//					List<Map<String, String>> cookies = task.getCookies();
+//					if (cookies == null) {
+//						cookies = new ArrayList<Map<String, String>>();
+//						task.setCookies(cookies);
+//					}
+					
+					// 通知任务完成
+					countDown.countDown();
+					return;
 				}
 						
 				String nextPageUrl = extractData.containsKey(Crawlers.XPATH_PAGINGBAR_NEXTURL_ELEMENTS) ? 
@@ -211,12 +240,62 @@ public class TaskWorker {
 		
 		// 增加Cookie设置
 		if (task.getCookies() != null) {
-			structDataClient.getMap(Crawlers.PREFIX_COOKIES).put(url, Crawlers.GSON.toJson(task.getCookies()));
+			structDataClient.getMap(Crawlers.COOKIES).put(url, Crawlers.GSON.toJson(task.getCookies()));
 		}
 		
 		// 第四步：Launch
 		structDataClient.getQueue(Crawlers.BACKLOG).add(url);
 		logger.info("Launch task fromUrl={}", url);
+		
+		// 记录Trace
+		if (task.isTraceLog()) {
+			task.setLogUrl(url);
+			structDataClient.getList(Crawlers.PREFIX_STORY_TRACE + task.getStoryName()).add(Crawlers.GSON.toJson(task));
+		}
+	}
+	
+	public Task submitTask(String storyName, Task task) throws Exception {
+		
+		CountDownLatch countDown = new CountDownLatch(1);
+		
+		ScheduledExecutorService nextPageSE = Executors.newSingleThreadScheduledExecutor();
+		ScheduledExecutorService currentPagePageSE = Executors.newSingleThreadScheduledExecutor();
+		// 第三步：设置翻页逻辑
+		if (task.isPageDown()) {
+			nextPageSE.scheduleWithFixedDelay(new NextPage(task, countDown),
+					initialDelay, period, TimeUnit.SECONDS);
+			logger.info("Start nextpage watcher fromUrl={}", task.getFromUrl());
+		} else {
+			currentPagePageSE.scheduleWithFixedDelay(new CurrentPage(task, countDown),
+					initialDelay, period, TimeUnit.SECONDS);
+		}
+		
+		try {
+			// 为Task做一些设置然后提交
+			doSubmitTask(task.getFromUrl(), task);	
+		} catch (Exception e) {
+			logger.error("Error when submit task={}", task.getFromUrl());
+		}
+		
+		// 当前任务执行完成
+		countDown.await();
+		
+		// 如果是任务正常结束
+		if (task.getRepostUrl() == null) {
+			try {
+				// 第五步：落地任务结果
+				ResultExporter exporter = applicationContext.getBean(task.getLanding(), ResultExporter.class);
+				logger.info("Start exporter on fromUrl={}", task.getFromUrl());
+				exporter.export(task);
+			} catch (Exception e) {
+				logger.error("Error when export task={}", task.getFromUrl());
+			}
+		}
+		
+		nextPageSE.shutdown();
+		currentPagePageSE.shutdown();
+		
+		return task;
 	}
 	
 	public Task submitTask(String storyName, String url, String template) throws Exception {
@@ -233,34 +312,7 @@ public class TaskWorker {
 		task.setFromUrl(url);
 		task.setStoryName(storyName);
 		
-		CountDownLatch countDown = new CountDownLatch(1);
-		
-		ScheduledExecutorService nextPageSE = Executors.newSingleThreadScheduledExecutor();
-		ScheduledExecutorService currentPagePageSE = Executors.newSingleThreadScheduledExecutor();
-		// 第三步：设置翻页逻辑
-		if (task.isPageDown()) {
-			nextPageSE.scheduleAtFixedRate(new NextPage(task, countDown),
-					initialDelay, period, TimeUnit.SECONDS);
-			logger.info("Start nextpage watcher fromUrl={}", task.getFromUrl());
-		} else {
-			currentPagePageSE.scheduleAtFixedRate(new CurrentPage(task, countDown),
-					initialDelay, period, TimeUnit.SECONDS);
-		}
-		
-		// 为Task做一些设置然后提交
-		doSubmitTask(task.getFromUrl(), task);
-		
-		// 当前任务执行完成
-		countDown.await();
-		
-		// 第五步：落地任务结果
-		ResultExporter exporter = applicationContext.getBean(task.getLanding(), ResultExporter.class);
-		logger.info("Start exporter on fromUrl={}", task.getFromUrl());
-		exporter.export(task);
-		
-		nextPageSE.shutdown();
-		currentPagePageSE.shutdown();
-		
-		return task;
+		// Delegate
+		return submitTask(storyName, task);
 	}
 }

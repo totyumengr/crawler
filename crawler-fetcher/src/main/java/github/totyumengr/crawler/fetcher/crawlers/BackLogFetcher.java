@@ -86,7 +86,7 @@ public class BackLogFetcher extends BaseSeimiCrawler {
 					req.setCrawlerName(Crawlers.BACKLOG);
 					req.setSkipDuplicateFilter(true);
 
-					Object cookieList = backlogClient.getMap(Crawlers.PREFIX_COOKIES).get(req.getUrl());
+					Object cookieList = backlogClient.getMap(Crawlers.COOKIES).get(req.getUrl());
 					if (cookieList != null) {
 						List<SeimiCookie> seimiCookie = Crawlers.GSON.fromJson(cookieList.toString(),
 					            new TypeToken<List<SeimiCookie>>() {}.getType());
@@ -118,7 +118,7 @@ public class BackLogFetcher extends BaseSeimiCrawler {
 		try {
 			URL o = new URL(response.getUrl());
 			URL r = new URL(response.getRealUrl());
-			if (o.getHost() != r.getHost() || o.getPath() != r.getPath()) {
+			if (!o.getHost().equals(r.getHost()) || !o.getPath().equals(r.getPath())) {
 				logger.info("Found 302 event, original url]{}, realUrl={}", response.getUrl(), response.getRealUrl());
 				maybe302 = true;
 			}
@@ -168,12 +168,14 @@ public class BackLogFetcher extends BaseSeimiCrawler {
 			String hexContent = ByteBufUtil.hexDump(response.getContent().getBytes("UTF-8"));
 			rawData.put(Crawlers.CONTENT, hexContent);
 			
+			// TODO: 没有放开Re-push的口，还不支持
 			if (needRepush) {
 				newUrl = Crawlers.appendParams(response.getRequest().getUrl(), needAppendParams);
 				newCookie = response.getRequest().getSeimiCookies();
-				logger.info("Repost request because 302 change cookie.");
-				rawData.put(Crawlers.REPOST, ByteBufUtil.hexDump(newUrl.getBytes("UTF-8")));
-				rawData.put(Crawlers.REPOST_COOKIE, ByteBufUtil.hexDump(newCookie.toString().getBytes("UTF-8")));
+				logger.warn("!!! Need re-push={} with cookie{}, but un-supported.!!!", newUrl, newCookie);
+//				logger.info("Repost request because 302 change cookie.");
+//				rawData.put(Crawlers.REPOST, ByteBufUtil.hexDump(newUrl.getBytes("UTF-8")));
+//				rawData.put(Crawlers.REPOST_COOKIE, ByteBufUtil.hexDump(newCookie.toString().getBytes("UTF-8")));
 			}
 			
 			fetcherClient.getQueue(Crawlers.RAWDATA).add(rawData);

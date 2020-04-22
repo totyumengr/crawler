@@ -12,5 +12,6 @@
 	],
 	"args": [
 		"https://book.douban.com/tag/小说?start=960&type=T"
-	]
+	],
+	"log": true
 }

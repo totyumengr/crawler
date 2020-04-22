@@ -5,6 +5,8 @@ import java.net.URL;
 import org.junit.Assert;
 import org.junit.Test;
 
+import github.totyumengr.crawler.Crawlers;
+
 public class NextPageTest {
 
 	@Test
@@ -33,6 +35,29 @@ public class NextPageTest {
 		
 		URL url = new URL("http://www.baidu.com/redirect.html?abc=23r&dsfsf=3r2432");
 		Assert.assertEquals("abc=23r&dsfsf=3r2432", url.getQuery());
+	}
+	
+	@Test
+	public void test302() throws Exception {
+		
+		URL url1 = new URL("https://search.smzdm.com/?c=home&s=送妈妈&order=time&v=b");
+		URL url2 = new URL("https://search.smzdm.com/?c=home&s=%E9%80%81%E5%A6%88%E5%A6%88&order=time&v=b");
+		Assert.assertEquals(url1.getHost(), url2.getHost());
+		Assert.assertEquals(url1.getPath(), url2.getPath());
+		url1 = new URL("https://search.smzdm.com");
+		url2 = new URL("https://search.smzdm.com");
+		Assert.assertEquals(true, url1.getPath() == url2.getPath());
+		Assert.assertEquals(true, url1.getPath().equals(url2.getPath()));
+	}
+	
+	@Test
+	public void testPrepareUrl() {
+		
+		String partPath = "//post.smzdm.com/p/aqnl5x3k/";
+		String fullPath = "https://search.smzdm.com/?c=post&s=送妈妈&order=time&v=b";
+		
+		String url = Crawlers.prepareUrl(fullPath, partPath);
+		Assert.assertEquals("https:" + partPath, url);
 	}
 
 }

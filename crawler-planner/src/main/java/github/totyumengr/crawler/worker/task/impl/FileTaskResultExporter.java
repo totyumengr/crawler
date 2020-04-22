@@ -25,8 +25,10 @@ public class FileTaskResultExporter extends AbstractResultExporter implements Re
 	@Value("${exporter.basefilepath}")
 	private String fileExporterPath;
 	
+	private static final String HEADER = "====================";
+	
 	@Override
-	public void doExport(Task task, List<List<String>> extractData) {
+	public void doExport(Task task, List<List<String>> extractData, List<String> allUrl) {
 		
 		File storyFolder = new File(fileExporterPath, task.getStoryName());
 		try {
@@ -38,7 +40,12 @@ public class FileTaskResultExporter extends AbstractResultExporter implements Re
 			FileUtils.touch(taskFile);
 			
 			List<String> c = new ArrayList<String>();
-			c.add(task.getFromUrl());
+			// 输出Header部分
+			c.add(HEADER);
+			c.addAll(allUrl);
+			c.add(HEADER);
+			
+			// 输出Body部分
 			for (List<String> data : extractData) {
 				c.addAll(data);
 			}

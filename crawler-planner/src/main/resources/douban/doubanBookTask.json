@@ -6,6 +6,5 @@
 		"extractor.content": "//div[@class='indent']"
 	},
 	"pageDown": false,
-	"landing": "file",
-	"traceLog": "no"
+	"landing": "file"
 }

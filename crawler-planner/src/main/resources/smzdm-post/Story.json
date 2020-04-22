@@ -1,0 +1,28 @@
+{
+	"name": "SMZDM-POST-SEARCH",
+	"tasks": [
+		{
+			"params": "args",
+			"template": "smzdm-post/SearchTask.json"
+		},
+		{
+			"params": "pipeline",
+			"template": "smzdm-post/ContentTask.json"
+		}
+	],
+	"args": [
+		"https://search.smzdm.com/?c=post&s=送妈妈&order=time&v=b",
+		"https://search.smzdm.com/?c=post&s=母亲节送礼&order=time&v=b",
+		"https://search.smzdm.com/?c=post&s=母亲节感恩&order=time&v=b",
+		"https://search.smzdm.com/?c=post&s=长辈送礼&order=time&v=b",
+		"https://search.smzdm.com/?c=post&s=送长辈+体面&order=time&v=b",
+		"https://search.smzdm.com/?c=post&s=五一&order=time&v=b",
+		"https://search.smzdm.com/?c=post&s=旅游攻略&order=time&v=b",
+		"https://search.smzdm.com/?c=post&s=旅游必备&order=time&v=b",
+		"https://search.smzdm.com/?c=post&s=五一出行&order=time&v=b",
+		"https://search.smzdm.com/?c=post&s=旅行神器&order=time&v=b",
+		"https://search.smzdm.com/?c=post&s=旅行好物&order=time&v=b",
+		"https://search.smzdm.com/?c=post&s=母亲节&order=time&v=b"
+	],
+	"log": true
+}

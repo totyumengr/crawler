@@ -3,7 +3,7 @@
 	"fromUrl": "从Story传递",
 	"extractor": "content",
 	"extractRules": {
-		"extractor.content": "//div[@class='title-box']/h1|//div[@class='title-box']/div[@class='price']/span|//article[@class='txt-detail']"
+		"extractor.content": "//article[@id='articleId']"
 	},
 	"pageDown": false,
 	"pageDownCount": -1,

@@ -27,7 +27,7 @@ public final class Crawlers {
 	
 	public static final String EXTRACTOR = "crawler.extractor";
 	public static final String PREFIX_EXTRACT_DATA = "crawler.structdata.";
-	public static final String PREFIX_COOKIES = "fetcher.cookies.";
+	public static final String COOKIES = "fetcher.cookies";
 	
 	public static final String XPATH_LIST_ELEMENTS = "extractor.paging.list";
 	public static final String XPATH_RECORD_ELEMENTS = "extractor.paging.list.record";
@@ -37,6 +37,9 @@ public final class Crawlers {
 	
 	public static final String PREFIX_TASK_RELATED_URLS = "worker.task.relatedurls.";
 	public static final String STORY_PIPELINE = "worker.pipeline";
+	
+	// Trace
+	public static final String PREFIX_STORY_TRACE = "worker.trace.";
 	// ---------------------------------------------------
 	
 	public static final String URL = "url";
@@ -62,6 +65,17 @@ public final class Crawlers {
 		} catch (MalformedURLException e) {
 			// Ignore
 			return partPath;
+		}
+		
+		if (partPath.startsWith("//")) {
+			// Maybe miss protocol
+			try {
+				String partPartUrl = url.getProtocol() + ":" + partPath;
+				new URL(fullPath);
+				return partPartUrl;
+			} catch (MalformedURLException e) {
+				// Ignore
+			}
 		}
 		
 		String domain = url.getProtocol() + "://" + url.getHost()

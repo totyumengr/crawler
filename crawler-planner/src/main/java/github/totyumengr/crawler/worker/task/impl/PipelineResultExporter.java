@@ -19,7 +19,7 @@ import github.totyumengr.crawler.worker.task.TaskWorker.Task;
 public class PipelineResultExporter extends AbstractResultExporter implements ResultExporter {
 
 	@Override
-	public void doExport(Task task, List<List<String>> extractData) {
+	public void doExport(Task task, List<List<String>> extractData, List<String> allUrl) {
 		
 		List<String> extractUrl = new ArrayList<String>();
 		for (List<String> d : extractData) {
@@ -28,6 +28,7 @@ public class PipelineResultExporter extends AbstractResultExporter implements Re
 			}
 			String url = d.get(0);
 			try {
+				url = Crawlers.prepareUrl(task.getFromUrl(), url);
 				new URL(url);
 			} catch (Exception e) {
 				logger.error("Ignore {}, do not put into {}", url, Crawlers.STORY_PIPELINE);

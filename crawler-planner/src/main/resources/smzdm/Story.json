@@ -1,5 +1,5 @@
 {
-	"name": "抓取什么值得买",
+	"name": "SMZDM-POST-SEARCH",
 	"tasks": [
 		{
 			"params": "args",
@@ -35,5 +35,6 @@
 		"https://search.smzdm.com/?c=home&s=旅行神器&order=time&v=a",
 		"https://search.smzdm.com/?c=home&s=旅行好物&order=time&v=a",
 		"https://search.smzdm.com/?c=home&s=母亲节&order=time&v=a"
-	]
+	],
+	"log": true
 }
