@@ -6,6 +6,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.Map.Entry;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -111,9 +112,6 @@ public class BackLogFetcher extends BaseSeimiCrawler {
 	 */
 	public void handleResponse(Response response) throws Exception {
 		
-		// Clear thread-local
-		PROXY_LOCAL.set(null);
-		
 		boolean maybe302 = false;
 		try {
 			URL o = new URL(response.getUrl());
@@ -210,13 +208,17 @@ public class BackLogFetcher extends BaseSeimiCrawler {
 	@Override
 	public void handleErrorRequest(Request request) {
 		
-		// Clear thread-local
-		PROXY_LOCAL.set(null);
-		
 		logger.info("Fail to fetch url={}", request.getUrl());
 		fetcherClient.getQueue(Crawlers.BACKLOG).add(request.getUrl());
 		logger.info("Return url={} to backlog because fail to fetch", request.getUrl());
 	}
+	
+	@Override
+    public void finallyRequest(Request request) {
+		
+		// Clear thread-local
+		PROXY_LOCAL.set(null);
+    }
 
 	/**
 	 * 实现代理IP池
@@ -227,16 +229,16 @@ public class BackLogFetcher extends BaseSeimiCrawler {
 		try {
 			String useProxyIp = PROXY_LOCAL.get();
 			if (useProxyIp == null) {
-				Object proxys = fetcherClient.getMap(Crawlers.PROXYPOOL).get(Crawlers.BACKLOG);
-				if (proxys != null) {
-					String[] ips = proxys.toString().split("\\|");
-					useProxyIp = ips[RandomUtils.nextInt(0, ips.length)];
+				Set<Object> proxys = fetcherClient.getMap(Crawlers.PROXYPOOL).keySet();
+				if (proxys != null && proxys.size() > 0) {
+					Object[] ips = proxys.toArray();
+					useProxyIp = ips[RandomUtils.nextInt(0, ips.length)].toString();
 					PROXY_LOCAL.set(useProxyIp);
-					logger.info("Use proxy IP={} to build request on {}.", useProxyIp, Crawlers.BACKLOG);
+					logger.info("Use proxy IP={} to build request.", useProxyIp);
 					return useProxyIp;
 				}
 			} else {
-				logger.info("Use thread-local proxy IP={} to build request on {}.", useProxyIp, Crawlers.BACKLOG);
+				logger.info("Use thread-local proxy IP={} to build request.");
 				return useProxyIp;
 			}
 			

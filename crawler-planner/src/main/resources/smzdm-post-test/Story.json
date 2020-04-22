@@ -1,0 +1,29 @@
+{
+	"name": "SMZDM-POST-SEARCH",
+	"tasks": [
+		{
+			"params": "args",
+			"template": "smzdm-post-test/SearchTask.json"
+		},
+		{
+			"params": "pipeline",
+			"template": "smzdm-post-test/ContentTask.json"
+		}
+	],
+	"args": [
+		"https://search.smzdm.com/?c=post&s=送妈妈&v=b",
+		"https://search.smzdm.com/?c=post&s=母亲节送礼&v=b",
+		"https://search.smzdm.com/?c=post&s=母亲节感恩&v=b",
+		"https://search.smzdm.com/?c=post&s=长辈送礼&v=b",
+		"https://search.smzdm.com/?c=post&s=送长辈+体面&v=b",
+		"https://search.smzdm.com/?c=post&s=五一&v=b",
+		"https://search.smzdm.com/?c=post&s=旅游攻略&v=b",
+		"https://search.smzdm.com/?c=post&s=旅游必备&v=b",
+		"https://search.smzdm.com/?c=post&s=五一出行&v=b",
+		"https://search.smzdm.com/?c=post&s=旅行神器&v=b",
+		"https://search.smzdm.com/?c=post&s=旅行好物&v=b",
+		"https://search.smzdm.com/?c=post&s=踏青&v=b",
+		"https://search.smzdm.com/?c=post&s=母亲节&v=b"
+	],
+	"log": true
+}

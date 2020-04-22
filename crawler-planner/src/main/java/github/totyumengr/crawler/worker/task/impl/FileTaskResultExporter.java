@@ -35,9 +35,8 @@ public class FileTaskResultExporter extends AbstractResultExporter implements Re
 			if (!storyFolder.exists()) {
 				FileUtils.forceMkdir(storyFolder);
 			}
-			// 开始写文件
-			File taskFile = new File(storyFolder, convertUrlToFileName(task.getFromUrl()));
-			FileUtils.touch(taskFile);
+			
+			
 			
 			List<String> c = new ArrayList<String>();
 			// 输出Header部分
@@ -45,11 +44,22 @@ public class FileTaskResultExporter extends AbstractResultExporter implements Re
 			c.addAll(allUrl);
 			c.add(HEADER);
 			
+			boolean needWriteToFile = false;
 			// 输出Body部分
 			for (List<String> data : extractData) {
 				c.addAll(data);
+				if (data.size() > 0) {
+					needWriteToFile = true;
+				}
 			}
-			FileUtils.writeLines(taskFile, c, true);
+			
+			// 开始写文件
+			if (needWriteToFile) {
+				File taskFile = new File(storyFolder, convertUrlToFileName(task.getFromUrl()));
+				FileUtils.touch(taskFile);
+				
+				FileUtils.writeLines(taskFile, c, true);	
+			}
 		} catch (IOException e) {
 			logger.error("Error when try to export task result url={}", task.getFromUrl());
 		}

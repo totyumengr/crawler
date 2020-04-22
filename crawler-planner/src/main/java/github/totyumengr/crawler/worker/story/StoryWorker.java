@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -64,6 +65,8 @@ public class StoryWorker {
 		private String name;
 		private List<Map<String, String>> tasks;
 		private List<String> args;
+		private String argsEL;
+		
 		public String getName() {
 			return name;
 		}
@@ -82,6 +85,12 @@ public class StoryWorker {
 		public void setArgs(List<String> args) {
 			this.args = args;
 		}
+		public String getArgsEL() {
+			return argsEL;
+		}
+		public void setArgsEL(String argsEL) {
+			this.argsEL = argsEL;
+		}
 	}
 	
 	@PostConstruct
@@ -96,11 +105,12 @@ public class StoryWorker {
 
 		// 获得故事配置
 		Story story = Crawlers.GSON.fromJson(storyJson, Story.class);
-		// 设置日志过期时间
-		storyDataClient.getList(Crawlers.PREFIX_STORY_TRACE + story.getName()).expireAsync(storyTTL.longValue(), TimeUnit.DAYS);
 		
 		// 开始Story
 		openStory(story);
+		
+		// 预处理
+		preStory(story);
 		
 		// 按照顺序执行任务。当前是单线程调度任务。
 		for (String url: story.getArgs()) {
@@ -141,6 +151,28 @@ public class StoryWorker {
 		closeStory(story);
 	}
 	
+	private void preStory(Story story) {
+		
+		if (story.getArgsEL() != null) {
+			String[] range = story.getArgsEL().split(",");
+			int start = Integer.valueOf(range[0]);
+			int end = Integer.valueOf(range[1]);
+			List<String> args = new ArrayList<String>();
+			for (String arg : story.getArgs()) {
+				for (int i = start; i <= end; i++) {
+					args.add(String.format(arg, i));
+				}
+			}
+			
+			// 随机打乱
+			Collections.shuffle(args);
+			
+			logger.info("Reset story args={} using el={}", story.getArgs(), story.getArgsEL());
+			story.setArgs(args);
+			logger.info("Done...Reset story args={} using el={}", story.getArgs().size(), story.getArgsEL());
+		}
+	}
+	
 	private void openStory(Story story) {
 		
 		File storyFolder = new File(fileExporterPath, story.getName());
@@ -148,6 +180,11 @@ public class StoryWorker {
 			if (storyFolder.exists()) {
 				FileUtils.deleteDirectory(storyFolder);
 			}
+			
+			storyDataClient.getList(Crawlers.PREFIX_STORY_TRACE + story.getName()).clear();
+			// 设置日志过期时间
+			storyDataClient.getList(Crawlers.PREFIX_STORY_TRACE + story.getName())
+				.expire(storyTTL.longValue(), TimeUnit.DAYS);
 		} catch (Exception e) {
 			logger.error("Error when try to open story={}", story.getName(), e);
 		}

@@ -167,9 +167,9 @@ public class TaskWorker {
 				// 处理Repost
 				String repostUrl = extractData.containsKey(Crawlers.REPOST) ? 
 						extractData.get(Crawlers.REPOST).toString() : null;
-				String repostCookie = extractData.containsKey(Crawlers.REPOST_COOKIE) ? 
-						extractData.get(Crawlers.REPOST_COOKIE).toString() : null;
-				// Cancel当前的任务，更新后重新Launch
+//				String repostCookie = extractData.containsKey(Crawlers.REPOST_COOKIE) ? 
+//						extractData.get(Crawlers.REPOST_COOKIE).toString() : null;
+				// TODO: Cancel当前的任务，更新后重新Launch
 				if (repostUrl != null && repostUrl.length() > 0) {
 					// 更新Cookie
 					task.setRepostUrl(repostUrl);

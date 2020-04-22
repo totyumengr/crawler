@@ -1,0 +1,14 @@
+{
+	"name": "DOUBAN-BOOKS",
+	"tasks": [
+		{
+			"params": "args",
+			"template": "douban-zhuangk-test/Task.json"
+		}
+	],
+	"args": [
+		"https://book.douban.com/subject/%s/"
+	],
+	"argsEL": "30000000,30000003",
+	"log": true
+}
