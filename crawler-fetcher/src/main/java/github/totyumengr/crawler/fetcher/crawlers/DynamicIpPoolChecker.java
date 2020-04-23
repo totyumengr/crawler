@@ -74,6 +74,7 @@ public class DynamicIpPoolChecker extends BaseSeimiCrawler {
 					Request ippoolReq = Request.build(ippoolUrl, "handleResponse");
 					ippoolReq.setCrawlerName(IP_POOL_CHECKER);
 					ippoolReq.setSkipDuplicateFilter(true);
+					ippoolReq.setMaxReqCount(1);
 					CrawlerCache.consumeRequest(ippoolReq);
 					logger.info("Submit a request, url={}", ippoolUrl);
 					
@@ -177,11 +178,11 @@ public class DynamicIpPoolChecker extends BaseSeimiCrawler {
 					Object[] ips = proxys.toArray();
 					useProxyIp = ips[RandomUtils.nextInt(0, ips.length)].toString();
 					PROXY_LOCAL.set(useProxyIp);
-					logger.info("Use proxy IP={} to build request.", useProxyIp);
 					return useProxyIp;
+				} else {
+					logger.warn("Not have available a proxy ip....");
 				}
 			} else {
-				logger.info("Use thread-local proxy IP={} to build request.", useProxyIp);
 				return useProxyIp;
 			}
 			

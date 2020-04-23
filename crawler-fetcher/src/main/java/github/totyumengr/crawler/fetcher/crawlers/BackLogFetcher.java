@@ -238,7 +238,7 @@ public class BackLogFetcher extends BaseSeimiCrawler {
 					return useProxyIp;
 				}
 			} else {
-				logger.info("Use thread-local proxy IP={} to build request.");
+				logger.info("Use thread-local proxy IP={} to build request.", useProxyIp);
 				return useProxyIp;
 			}
 			
