@@ -1,6 +1,5 @@
 package github.totyumengr.crawler.worker.task;
 
-import java.io.InputStream;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -9,19 +8,18 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.commons.io.IOUtils;
 import org.redisson.api.RedissonClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationContext;
-import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Component;
 
 import com.google.gson.reflect.TypeToken;
 
 import github.totyumengr.crawler.Crawlers;
+import github.totyumengr.crawler.worker.story.StoryWorker;
 
 /**
  * 根据JSON格式的任务描述文件，指定执行计划
@@ -300,10 +298,12 @@ public class TaskWorker {
 	
 	public Task submitTask(String storyName, String url, String template) throws Exception {
 		
-		// TODO: 后续改为动态配置的模板获取方式，比如Redis
-		Resource taskFile = applicationContext.getResource("classpath:" + template);
-		InputStream is = taskFile.getInputStream();
-		String taskJson = IOUtils.toString(is, "UTF-8");
+		Object taskData = structDataClient.getMap(StoryWorker.STORY_TASKS).get(template);
+		if (taskData == null) {
+			throw new IllegalArgumentException("Invaild task name. " + template);
+		}
+		
+		String taskJson = taskData.toString();
 		logger.info("Start task={}", taskJson);
 
 		// 获得任务配置

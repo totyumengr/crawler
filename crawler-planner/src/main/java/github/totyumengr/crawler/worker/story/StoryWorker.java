@@ -2,24 +2,23 @@ package github.totyumengr.crawler.worker.story;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import javax.annotation.PostConstruct;
 
 import org.apache.commons.io.FileUtils;
-import org.apache.commons.io.IOUtils;
 import org.redisson.api.RedissonClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.ApplicationContext;
-import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Component;
 
 import com.google.gson.reflect.TypeToken;
@@ -44,21 +43,22 @@ public class StoryWorker {
 	@Autowired
 	private RedissonClient storyDataClient;
 	
-	@Autowired
-	private ApplicationContext applicationContext;
-	
 	@Value("${worker.initialDelay}")
 	private int initialDelay;
 	@Value("${worker.period}")
 	private int period;
-	@Value("${worker.story.jsonFileName}")
-	private String storyJsonFile;
 	
 	@Value("${worker.story.log.ttl}")
 	private Integer storyTTL;
 	
-	@Value("${exporter.basefilepath}")
-	private String fileExporterPath;
+	@Value("${exporter.story.dir}")
+	private String storyExportDir;
+	
+	@Value("${worker.runner.parallel}")
+	private int storyRunnerParallel;
+	
+	public static final String STORY_FILE_QUEYE = "worker.story";
+	public static final String STORY_TASKS = "worker.story.tasks";
 	
 	class Story {
 		
@@ -94,61 +94,101 @@ public class StoryWorker {
 	}
 	
 	@PostConstruct
-	private void init() throws Exception {
+	private void init() {
 		
-		// TODO: 临时从本地获取，未来改为调度制
-		Resource storyFile = applicationContext.getResource("classpath:" + storyJsonFile);
-		InputStream is = storyFile.getInputStream();
-		String storyJson = IOUtils.toString(is, "UTF-8");
-		
-		logger.info("Start story={}", storyJson);
+		ScheduledExecutorService storyScanner = Executors.newSingleThreadScheduledExecutor();
+		ExecutorService storyRunner = Executors.newFixedThreadPool(storyRunnerParallel);
+		storyScanner.scheduleWithFixedDelay(new Runnable() {
 
-		// 获得故事配置
-		Story story = Crawlers.GSON.fromJson(storyJson, Story.class);
-		
-		// 开始Story
-		openStory(story);
-		
-		// 预处理
-		preStory(story);
-		
-		// 按照顺序执行任务。当前是单线程调度任务。
-		for (String url: story.getArgs()) {
-			for (Map<String, String> task : story.getTasks()) {
+			@Override
+			public void run() {
 				
-				logger.info("Start task={}", task);
-				Task submittedTask = null;
-				if (task.get(Crawlers.TASK_PARAMS).equals(Crawlers.TASK_PARAMS_ARGS)) {
-					// 从任务中获取参数，并提交
-					logger.info("Submit task={} using template={}", url, task.get(Crawlers.TASK_TEMPLATE));
-					submittedTask = taskWorker.submitTask(story.getName(), url, task.get(Crawlers.TASK_TEMPLATE));
-					// TODO: 当前写这么写，后续要优雅一些。
-					while (submittedTask.getRepostUrl() != null) {
-						submittedTask.setFromUrl(submittedTask.getRepostUrl());
-						submittedTask.setRepostUrl(null);
-						logger.info("Repost task={}", submittedTask.getFromUrl());
-						submittedTask = taskWorker.submitTask(story.getName(), submittedTask);
-					}
+				Object storyInQueue = storyDataClient.getQueue(STORY_FILE_QUEYE).poll();
+				if (storyInQueue == null) {
+					logger.info("Do not obtain a story... Directly return");
+					return;
 				}
-				if (task.get(Crawlers.TASK_PARAMS).equals(Crawlers.TASK_PARAMS_PIPELINE)) {
-					// 从上下文中获取参数，并提交
-					Object pipeline = storyDataClient.getMap(Crawlers.STORY_PIPELINE).get(url);
-					if (pipeline == null) {
-						logger.error("Can not found data from pipeline url={}", url);
-					} else {
-						List<String> urlList = Crawlers.GSON.fromJson(pipeline.toString(),
-								new TypeToken<List<String>>() {}.getType());
-						for (String pipelineUrl: urlList) {
-							logger.info("Submit task={} using template={}", pipelineUrl, task.get(Crawlers.TASK_TEMPLATE));
-							taskWorker.submitTask(story.getName(), pipelineUrl, task.get(Crawlers.TASK_TEMPLATE));
+				
+				// 找到一个Story
+				logger.info("Found a story and submit it. {}", storyInQueue);
+				storyRunner.submit(new StoryRunner(storyInQueue.toString()));
+			}
+		}, initialDelay, period, TimeUnit.SECONDS);
+	}
+	
+	private class StoryRunner implements Runnable {
+		
+		private String storyJson;
+		public StoryRunner(String storyJson) {
+			super();
+			this.storyJson = storyJson;
+		}
+
+		public void run() {
+			
+			logger.info("Start story={}", storyJson);
+
+			// 获得故事配置
+			Story story = Crawlers.GSON.fromJson(storyJson, Story.class);
+			
+			try {
+				// 开始Story
+				openStory(story);
+				
+				// 预处理
+				preStory(story);
+				
+				// 按照顺序执行任务。当前是单线程调度任务。
+				for (String url: story.getArgs()) {
+					for (Map<String, String> task : story.getTasks()) {
+						
+						logger.info("Start task={}", task);
+						Task submittedTask = null;
+						if (task.get(Crawlers.TASK_PARAMS).equals(Crawlers.TASK_PARAMS_ARGS)) {
+							// 从任务中获取参数，并提交
+							logger.info("Submit task={} using template={}", url, task.get(Crawlers.TASK_TEMPLATE));
+							submittedTask = taskWorker.submitTask(story.getName(), url, task.get(Crawlers.TASK_TEMPLATE));
+							// TODO: 当前写这么写，后续要优雅一些。
+							while (submittedTask.getRepostUrl() != null) {
+								submittedTask.setFromUrl(submittedTask.getRepostUrl());
+								submittedTask.setRepostUrl(null);
+								logger.info("Repost task={}", submittedTask.getFromUrl());
+								submittedTask = taskWorker.submitTask(story.getName(), submittedTask);
+							}
+						}
+						if (task.get(Crawlers.TASK_PARAMS).equals(Crawlers.TASK_PARAMS_PIPELINE)) {
+							// 从上下文中获取参数，并提交
+							Object pipeline = storyDataClient.getMap(Crawlers.STORY_PIPELINE).get(url);
+							if (pipeline == null) {
+								logger.error("Can not found data from pipeline url={}", url);
+							} else {
+								List<String> urlList = Crawlers.GSON.fromJson(pipeline.toString(),
+										new TypeToken<List<String>>() {}.getType());
+								for (String pipelineUrl: urlList) {
+									logger.info("Submit task={} using template={}", pipelineUrl, task.get(Crawlers.TASK_TEMPLATE));
+									taskWorker.submitTask(story.getName(), pipelineUrl, task.get(Crawlers.TASK_TEMPLATE));
+								}
+							}
 						}
 					}
 				}
+			} catch (Exception e) {
+				logger.error("Fail to execute task.", e);
 			}
+			
+			// 执行清理任务
+			closeStory(story);
+		}
+	}
+	
+	private void openStory(Story story) throws Exception{
+		
+		File storyFolder = new File(storyExportDir, story.getName());
+		if (storyFolder.exists()) {
+			FileUtils.deleteDirectory(storyFolder);
 		}
 		
-		// 执行清理任务
-		closeStory(story);
+		storyDataClient.getList(Crawlers.PREFIX_STORY_TRACE + story.getName()).clear();
 	}
 	
 	private void preStory(Story story) {
@@ -173,23 +213,6 @@ public class StoryWorker {
 		}
 	}
 	
-	private void openStory(Story story) {
-		
-		File storyFolder = new File(fileExporterPath, story.getName());
-		try {
-			if (storyFolder.exists()) {
-				FileUtils.deleteDirectory(storyFolder);
-			}
-			
-			storyDataClient.getList(Crawlers.PREFIX_STORY_TRACE + story.getName()).clear();
-			// 设置日志过期时间
-			storyDataClient.getList(Crawlers.PREFIX_STORY_TRACE + story.getName())
-				.expire(storyTTL.longValue(), TimeUnit.DAYS);
-		} catch (Exception e) {
-			logger.error("Error when try to open story={}", story.getName(), e);
-		}
-	}
-	
 	private void closeStory(Story story) {
 		
 		List<Object> storyTrace = storyDataClient.getList(Crawlers.PREFIX_STORY_TRACE + story.getName());
@@ -197,8 +220,11 @@ public class StoryWorker {
 			logger.info("Do not clean story={} because cannot found trace info.", story.getName());
 			return;
 		}
+		// 设置日志过期时间
+		storyDataClient.getList(Crawlers.PREFIX_STORY_TRACE + story.getName())
+			.expire(storyTTL.longValue(), TimeUnit.DAYS);
 		
-		File storyFolder = new File(fileExporterPath, story.getName());
+		File storyFolder = new File(storyExportDir, story.getName());
 		try {
 			if (!storyFolder.exists()) {
 				FileUtils.forceMkdir(storyFolder);
@@ -246,10 +272,12 @@ public class StoryWorker {
 			
 			storyDataClient.getList(Crawlers.PREFIX_TASK_RELATED_URLS + task.getLogUrl()).clear();
 			
+			// 未定义到Crawlers中。
+			storyDataClient.getMap(STORY_TASKS).fastRemoveAsync(task.getName());
+			
 			logger.info("Done... Clean intermidiate data url={}", task.getLogUrl());
 		} catch (Exception e) {
 			logger.error("Error when try to clean intermidiate data url={}", task.getLogUrl());
 		}
-		
 	}
 }

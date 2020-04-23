@@ -22,21 +22,19 @@ public class FileTaskResultExporter extends AbstractResultExporter implements Re
 
 	protected Logger logger = LoggerFactory.getLogger(getClass());
 	
-	@Value("${exporter.basefilepath}")
-	private String fileExporterPath;
+	@Value("${exporter.story.dir}")
+	private String storyExportDir;
 	
 	private static final String HEADER = "====================";
 	
 	@Override
 	public void doExport(Task task, List<List<String>> extractData, List<String> allUrl) {
 		
-		File storyFolder = new File(fileExporterPath, task.getStoryName());
+		File storyFolder = new File(storyExportDir, task.getStoryName());
 		try {
 			if (!storyFolder.exists()) {
 				FileUtils.forceMkdir(storyFolder);
 			}
-			
-			
 			
 			List<String> c = new ArrayList<String>();
 			// 输出Header部分
@@ -59,6 +57,9 @@ public class FileTaskResultExporter extends AbstractResultExporter implements Re
 				FileUtils.touch(taskFile);
 				
 				FileUtils.writeLines(taskFile, c, true);	
+				logger.info("Done... Write content to file. {}", task.getFromUrl());
+			} else {
+				logger.info("Do not write to file because empty... {}", task.getFromUrl());
 			}
 		} catch (IOException e) {
 			logger.error("Error when try to export task result url={}", task.getFromUrl());
