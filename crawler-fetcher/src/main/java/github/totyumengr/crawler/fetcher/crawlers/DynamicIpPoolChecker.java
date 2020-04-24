@@ -105,26 +105,30 @@ public class DynamicIpPoolChecker extends BaseSeimiCrawler {
 	 */
 	public void handleResponse(Response response) throws Exception {
 		
-		if (response.getUrl().equals(checkerUrl)) {
-			// 如果是IP可用检查的返回
-			String useProxyIp = PROXY_LOCAL.get();
-			logger.info("Proxy IP is available {}", useProxyIp);
-		} else if (response.getUrl().equals(ippoolUrl)) {
-			// 如果是全量IP获取的返回
-			logger.info("Success fetch url={}", response.getUrl());
-			if (BodyType.TEXT.equals(response.getBodyType())) {
-				String ippool = response.getContent();
-				String[] ips = ippool.split("\r\n");
-				if (ips != null && ips.length > 0) {
-					for (String ip : ips) {
-						String proxyIp = "http://" + ip; 
-						checkerClient.getMap(Crawlers.PROXYPOOL).put(proxyIp, proxyIp);
+		try {
+			if (response.getUrl().equals(checkerUrl)) {
+				// 如果是IP可用检查的返回
+				String useProxyIp = PROXY_LOCAL.get();
+				logger.info("Proxy IP is available {}", useProxyIp);
+			} else if (response.getUrl().equals(ippoolUrl)) {
+				// 如果是全量IP获取的返回
+				logger.info("Success fetch url={}", response.getUrl());
+				if (BodyType.TEXT.equals(response.getBodyType())) {
+					String ippool = response.getContent();
+					String[] ips = ippool.split("\r\n");
+					if (ips != null && ips.length > 0) {
+						for (String ip : ips) {
+							String proxyIp = "http://" + ip; 
+							checkerClient.getMap(Crawlers.PROXYPOOL).put(proxyIp, proxyIp);
+						}
 					}
+					logger.info("Update {} by {}", Crawlers.PROXYPOOL, response.getUrl());
+				} else {
+					logger.info("Ignore un-text response of url={}", response.getUrl());
 				}
-				logger.info("Update {} by {}", Crawlers.PROXYPOOL, response.getUrl());
-			} else {
-				logger.info("Ignore un-text response of url={}", response.getUrl());
 			}
+		} catch (Exception e) {
+			logger.error("Error when try to handleResponse, {}", response.getRealUrl(), e);
 		}
 	}
 	
@@ -152,9 +156,14 @@ public class DynamicIpPoolChecker extends BaseSeimiCrawler {
 	@Override
 	public void handleErrorRequest(Request request) {
 		
-		String useProxyIp = PROXY_LOCAL.get();
-		checkerClient.getMap(Crawlers.PROXYPOOL).remove(useProxyIp);
-		logger.info("{} maybe is not available, remove it. url={}", useProxyIp, request.getUrl());
+		try {
+			String useProxyIp = PROXY_LOCAL.get();
+			checkerClient.getMap(Crawlers.PROXYPOOL).remove(useProxyIp);
+			logger.info("{} maybe is not available, remove it. url={}", useProxyIp, request.getUrl());
+		} catch (Exception e) {
+			logger.error("Error when try to handleErrorRequest, {}", request.getUrl(), e);
+		}
+		
 	}
 	
 	@Override

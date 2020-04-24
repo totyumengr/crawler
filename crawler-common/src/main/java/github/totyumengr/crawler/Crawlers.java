@@ -25,6 +25,7 @@ public final class Crawlers {
 	public static final String RAWDATA = "crawler.rawdata";
 
 	// Map
+	public static final String BACKLOG_REPUSH = "crawler.backlog.repush";
 	public static final String PROXYPOOL = "crawler.proxypool";
 	
 	public static final String EXTRACTOR = "crawler.extractor";
@@ -205,7 +206,9 @@ public final class Crawlers {
 				String[] pair = query.split("&");
 				for (String p : pair) {
 					String[] kv = p.split("=");
-					params.put(kv[0], kv[1]);
+					if (kv.length > 1) {
+						params.put(kv[0], kv[1]);
+					}
 				}
 			}
 		} catch (MalformedURLException e) {

@@ -4,6 +4,7 @@ import java.net.URL;
 
 import org.junit.Assert;
 import org.junit.Test;
+import org.seimicrawler.xpath.JXDocument;
 
 import github.totyumengr.crawler.Crawlers;
 
@@ -58,6 +59,11 @@ public class NextPageTest {
 		
 		String url = Crawlers.prepareUrl(fullPath, partPath);
 		Assert.assertEquals("https:" + partPath, url);
+	}
+	
+	@Test
+	public void testDocument() {
+		JXDocument.create("<html><head>NO_CONTENT</head><body>NO_CONTENT</body></html>");
 	}
 
 }

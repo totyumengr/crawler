@@ -1,13 +1,12 @@
 package github.totyumengr.crawler.fetcher.crawlers;
 
 import java.net.URL;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.Map.Entry;
+import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
@@ -61,6 +60,9 @@ public class BackLogFetcher extends BaseSeimiCrawler {
 	@Value("${backlog.proxy.authPassword}")
 	private String proxyAuthenticatorPassword;
 	
+	@Value("${backlog.repush.maxcount}")
+	private int repushMaxCount;
+	
 	/**
 	 * 真正去执行的抓取任务类
 	 * @author mengran7
@@ -106,81 +108,88 @@ public class BackLogFetcher extends BaseSeimiCrawler {
 		}
 	}
 	
+	private static final String EMPTY_COUNT = "<html><head>NO_CONTENT</head><body>NO_CONTENT</body></html>";
+	
 	/**
 	 * 成功抓取的URL返回内容。
 	 * @param response 获取的返回文档
 	 */
 	public void handleResponse(Response response) throws Exception {
 		
-		boolean maybe302 = false;
 		try {
-			URL o = new URL(response.getUrl());
-			URL r = new URL(response.getRealUrl());
-			if (!o.getHost().equals(r.getHost()) || !o.getPath().equals(r.getPath())) {
-				logger.info("Found 302 event, original url]{}, realUrl={}", response.getUrl(), response.getRealUrl());
-				maybe302 = true;
-			}
- 		} catch (Exception e) {
- 			logger.error("Ignore 302 check...");
- 		}
-		boolean needRepush = false;
-		boolean needResubmit = false;
-		Map<String, String> needAppendParams = new LinkedHashMap<String, String>();
-		if (maybe302) {
-			List<SeimiCookie> seimiCookies = response.getRequest().getSeimiCookies();
-			Map<String, String> params = Crawlers.parseParams(response.getRealUrl());
-			Map<String, String> oriParams = Crawlers.parseParams(response.getUrl());
-			if (seimiCookies != null) {
-				// Cookie问题
-				for (SeimiCookie cookie : seimiCookies) {
-					if (params.containsKey(cookie.getName())) {
-						cookie.setValue(params.get(cookie.getName()));
-						needRepush = true;
+			boolean maybe302 = false;
+			try {
+				URL o = new URL(response.getUrl());
+				URL r = new URL(response.getRealUrl());
+				if (!o.getHost().equals(r.getHost()) || !o.getPath().equals(r.getPath())) {
+					logger.info("Found 302 event, original url]{}, realUrl={}", response.getUrl(), response.getRealUrl());
+					maybe302 = true;
+				}
+	 		} catch (Exception e) {
+	 			logger.error("Ignore 302 check...");
+	 		}
+			boolean needRepush = false;
+			boolean needResubmit = false;
+			Map<String, String> needAppendParams = new LinkedHashMap<String, String>();
+			if (maybe302) {
+				List<SeimiCookie> seimiCookies = response.getRequest().getSeimiCookies();
+				Map<String, String> params = Crawlers.parseParams(response.getRealUrl());
+				Map<String, String> oriParams = Crawlers.parseParams(response.getUrl());
+				if (seimiCookies != null) {
+					// Cookie问题
+					for (SeimiCookie cookie : seimiCookies) {
+						if (params.containsKey(cookie.getName())) {
+							cookie.setValue(params.get(cookie.getName()));
+							needRepush = true;
+						}
+					}
+				}
+				// 将多出来的参数附加到原参数列表中
+				for (Entry<String, String> entry : params.entrySet()) {
+					if (!oriParams.containsKey(entry.getKey())) {
+						needAppendParams.put(entry.getKey(), entry.getValue());
+						needResubmit = true;
 					}
 				}
 			}
-			// 将多出来的参数附加到原参数列表中
-			for (Entry<String, String> entry : params.entrySet()) {
-				if (!oriParams.containsKey(entry.getKey())) {
-					needAppendParams.put(entry.getKey(), entry.getValue());
-					needResubmit = true;
-				}
-			}
-		}
 
-		String newUrl = "";
-		List<SeimiCookie> newCookie = new ArrayList<SeimiCookie>();
-		if (needRepush && !needResubmit) {
-			// 直接Re-Send request操作，因为URL没有变化
-			CrawlerCache.consumeRequest(response.getRequest());
-			logger.info("Because 302 cookie updated, re-submit a fetch task, url={}", response.getUrl());
-			return;
-		}
-		
-		logger.info("Success fetch url={}", response.getUrl());
-		if (BodyType.TEXT.equals(response.getBodyType())) {
-			// Push response to raw-data status
-			Map<String, String> rawData = new HashMap<String, String>(2);
-			String hexUrl = ByteBufUtil.hexDump(response.getUrl().getBytes("UTF-8"));
-			rawData.put(Crawlers.URL, hexUrl);
-			String hexContent = ByteBufUtil.hexDump(response.getContent().getBytes("UTF-8"));
-			rawData.put(Crawlers.CONTENT, hexContent);
-			
-			// TODO: 没有放开Re-push的口，还不支持
-			if (needRepush) {
-				newUrl = Crawlers.appendParams(response.getRequest().getUrl(), needAppendParams);
-				newCookie = response.getRequest().getSeimiCookies();
-				logger.warn("!!! Need re-push={} with cookie{}, but un-supported.!!!", newUrl, newCookie);
-//				logger.info("Repost request because 302 change cookie.");
-//				rawData.put(Crawlers.REPOST, ByteBufUtil.hexDump(newUrl.getBytes("UTF-8")));
-//				rawData.put(Crawlers.REPOST_COOKIE, ByteBufUtil.hexDump(newCookie.toString().getBytes("UTF-8")));
+			if (needRepush && !needResubmit) {
+				// 直接Re-Send request操作，因为URL没有变化
+				CrawlerCache.consumeRequest(response.getRequest());
+				logger.info("Because 302 cookie updated, re-submit a fetch task, url={}", response.getUrl());
+				return;
 			}
 			
-			fetcherClient.getQueue(Crawlers.RAWDATA).add(rawData);
-			logger.info("Push into queue={} which response of url={}", Crawlers.RAWDATA, response.getUrl());
-		} else {
-			logger.info("Ignore un-text response of url={}", response.getUrl());
+			logger.info("Success fetch url={}", response.getUrl());
+			if (BodyType.TEXT.equals(response.getBodyType())) {
+				doResponse(response.getUrl(), response.getContent());
+			} else {
+				logger.info("Ignore un-text response of url={}", response.getUrl());
+			}
+		} catch (Exception e) {
+			logger.error("Error when try to handleResponse, {}", response.getRealUrl(), e);
 		}
+	}
+	
+	private void doResponse(String url, String content) throws Exception {
+		// Push response to raw-data status
+		Map<String, String> rawData = new HashMap<String, String>(2);
+		String hexUrl = ByteBufUtil.hexDump(url.getBytes("UTF-8"));
+		rawData.put(Crawlers.URL, hexUrl);
+		String realContent = content;
+		if (realContent == null) {
+			realContent = EMPTY_COUNT;
+		}
+		String hexContent = ByteBufUtil.hexDump(realContent.getBytes("UTF-8"));
+		rawData.put(Crawlers.CONTENT, hexContent);
+		
+		// TODO: 没有放开Re-push的口，还不支持
+//			logger.info("Repost request because 302 change cookie.");
+//			rawData.put(Crawlers.REPOST, ByteBufUtil.hexDump(newUrl.getBytes("UTF-8")));
+//			rawData.put(Crawlers.REPOST_COOKIE, ByteBufUtil.hexDump(newCookie.toString().getBytes("UTF-8")));
+		
+		fetcherClient.getQueue(Crawlers.RAWDATA).add(rawData);
+		logger.info("Push into queue={} which response of url={}", Crawlers.RAWDATA, url);
 	}
 	
 	/**
@@ -201,16 +210,26 @@ public class BackLogFetcher extends BaseSeimiCrawler {
 	public void start(Response response) {
 		// 空方法，因为未设置启动URL。
 	}
-
+	
 	/**
 	 * 记录失败日志，并退回至Backlog
 	 */
 	@Override
 	public void handleErrorRequest(Request request) {
 		
-		logger.info("Fail to fetch url={}", request.getUrl());
-		fetcherClient.getQueue(Crawlers.BACKLOG).add(request.getUrl());
-		logger.info("Return url={} to backlog because fail to fetch", request.getUrl());
+		try {
+			Object repushCount = fetcherClient.getMap(Crawlers.BACKLOG_REPUSH).addAndGet(request.getUrl(), 1);
+			if (Integer.valueOf(repushCount.toString()) < repushMaxCount) {
+				fetcherClient.getQueue(Crawlers.BACKLOG).add(request.getUrl());
+				logger.info("Return url={} to backlog because fail to fetch", request.getUrl());
+			} else {
+				fetcherClient.getMap(Crawlers.BACKLOG_REPUSH).put(request.getUrl(), 0);
+				doResponse(request.getUrl(), EMPTY_COUNT);
+				logger.info("Fail to fetch url={}", request.getUrl());
+			}
+		} catch (Exception e) {
+			logger.error("Error when try to handleErrorRequest, {}", request.getUrl(), e);
+		}
 	}
 	
 	@Override
