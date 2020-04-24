@@ -227,7 +227,6 @@ public class TaskWorker {
 		}
 	}
 	
-	
 	public Task submitEmulatorTask(String storyName, Task task) throws Exception {
 		
 		CountDownLatch countDown = new CountDownLatch(1);

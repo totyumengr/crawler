@@ -5,7 +5,7 @@
 
     <artifactId>crawler-fetcher</artifactId>
 	<packaging>jar</packaging>
-	<version>1.0.1</version>
+	<version>1.0.2</version>
 	<name>crawler-fetcher</name>
 	<parent>
 		<groupId>org.springframework.boot</groupId>
@@ -42,6 +42,10 @@
 				<exclusion>
 					<groupId>org.redisson</groupId>
 					<artifactId>redisson-spring-data-22</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.springframework.boot</groupId>
+					<artifactId>spring-boot-starter-web</artifactId>
 				</exclusion>
 			</exclusions>
 		</dependency>

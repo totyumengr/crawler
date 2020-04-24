@@ -117,6 +117,8 @@ public class DynamicIpPoolChecker extends BaseSeimiCrawler {
 					String ippool = response.getContent();
 					String[] ips = ippool.split("\r\n");
 					if (ips != null && ips.length > 0) {
+						// 清楚原来的
+						checkerClient.getMap(Crawlers.PROXYPOOL).clear();
 						for (String ip : ips) {
 							String proxyIp = "http://" + ip; 
 							checkerClient.getMap(Crawlers.PROXYPOOL).put(proxyIp, proxyIp);
@@ -140,7 +142,7 @@ public class DynamicIpPoolChecker extends BaseSeimiCrawler {
 		
 		Executors.newSingleThreadScheduledExecutor().scheduleWithFixedDelay(new CheckerTask(),
 				initialDelay, period, TimeUnit.SECONDS);
-		logger.info("Start to watch {}", Crawlers.BACKLOG);
+		logger.info("Start to check...");
 		
 		return new String[0];
 	}
@@ -179,6 +181,7 @@ public class DynamicIpPoolChecker extends BaseSeimiCrawler {
 	@Override
 	public String proxy() {
 		
+		String wrongStyle = "~~http://1.2.3.4:1234";
 		try {
 			String useProxyIp = PROXY_LOCAL.get();
 			if (useProxyIp == null) {
@@ -197,10 +200,10 @@ public class DynamicIpPoolChecker extends BaseSeimiCrawler {
 			
 		} catch (Exception e) {
 			logger.warn("Ignore error when try to get a proxy IP", e);
-			return null;
+			return wrongStyle;
 		}
 		
-		return null;
+		return wrongStyle;
 	}
 
 }

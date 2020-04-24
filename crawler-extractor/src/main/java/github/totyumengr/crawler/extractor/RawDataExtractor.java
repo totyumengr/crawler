@@ -2,7 +2,6 @@ package github.totyumengr.crawler.extractor;
 
 import java.util.Map;
 import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 
 import javax.annotation.PostConstruct;
 
@@ -12,7 +11,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.NoSuchBeanDefinitionException;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Component;
 
@@ -37,11 +35,6 @@ public class RawDataExtractor {
 	@Autowired
 	private ApplicationContext context;
 	
-	@Value("${extractor.initialDelay}")
-	private int initialDelay;
-	@Value("${extractor.period}")
-	private int period;
-	
 	private String determineExtractor(String url) {
 		
 		Object extractor = rawDataClient.getMap(Crawlers.EXTRACTOR).get(url);
@@ -54,9 +47,7 @@ public class RawDataExtractor {
 	@PostConstruct
 	private void init() {
 		
-		// TODO: 考虑更高效的方式，比如Listener
-		Executors.newSingleThreadScheduledExecutor().scheduleWithFixedDelay(new ExtractWorker(),
-				initialDelay, period, TimeUnit.SECONDS);
+		Executors.newSingleThreadExecutor().submit(new ExtractWorker());
 		logger.info("Start to watch {}", Crawlers.RAWDATA);
 	}
 	
@@ -70,9 +61,10 @@ public class RawDataExtractor {
 		@Override
 		public void run() {
 			
-			Object rawData = rawDataClient.getQueue(Crawlers.RAWDATA).poll();
-			try {
-				if (rawData != null) {
+			Object rawData = null;
+			while (true) {
+				try {
+					rawData = rawDataClient.getBlockingQueue(Crawlers.RAWDATA).take();
 					Map<String, String> res = Crawlers.GSON.fromJson(rawData.toString(),
 							new TypeToken<Map<String, String>>() {}.getType());
 					if (!res.containsKey(Crawlers.URL)) {
@@ -100,12 +92,12 @@ public class RawDataExtractor {
 					
 					boolean isSuccess = extractor.extract(url, JXDocument.create(content), extractorType, repostUrl, repostCookie);
 					logger.info("Is Done={}...extract content of url={}", isSuccess, url);
+				} catch (NoSuchBeanDefinitionException nsbde) {
+					rawDataClient.getQueue(Crawlers.RAWDATA).offer(rawData);
+					logger.error("UnSupport extractor type and put-back.", nsbde);
+				} catch (Exception e) {
+					logger.error("Extract error.", e);
 				}
-			} catch (NoSuchBeanDefinitionException nsbde) {
-				rawDataClient.getQueue(Crawlers.RAWDATA).offer(rawData);
-				logger.error("UnSupport extractor type and put-back.", nsbde);
-			} catch (Exception e) {
-				logger.error("Extract error.", e);
 			}
 		}
 	}

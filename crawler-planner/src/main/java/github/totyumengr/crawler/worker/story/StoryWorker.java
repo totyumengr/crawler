@@ -8,7 +8,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import javax.annotation.PostConstruct;
@@ -96,23 +95,26 @@ public class StoryWorker {
 	@PostConstruct
 	private void init() {
 		
-		ScheduledExecutorService storyScanner = Executors.newSingleThreadScheduledExecutor();
+		ExecutorService storyScanner = Executors.newSingleThreadExecutor();
 		ExecutorService storyRunner = Executors.newFixedThreadPool(storyRunnerParallel);
-		storyScanner.scheduleWithFixedDelay(new Runnable() {
+		
+		storyScanner.execute(new Runnable() {
 
 			@Override
 			public void run() {
 				
-				Object storyInQueue = storyDataClient.getQueue(STORY_FILE_QUEYE).poll();
-				if (storyInQueue == null) {
-					return;
+				try {
+					while (true) {
+						Object storyInQueue = storyDataClient.getBlockingQueue(STORY_FILE_QUEYE).take();
+						// 找到一个Story
+						logger.info("Found a story and submit it. {}", storyInQueue);
+						storyRunner.submit(new StoryRunner(storyInQueue.toString()));
+					}
+				} catch (Exception e) {
+					logger.error("Error when try to take a story.", e);
 				}
-				
-				// 找到一个Story
-				logger.info("Found a story and submit it. {}", storyInQueue);
-				storyRunner.submit(new StoryRunner(storyInQueue.toString()));
 			}
-		}, initialDelay, period, TimeUnit.SECONDS);
+		});
 	}
 	
 	private class StoryRunner implements Runnable {
@@ -268,6 +270,8 @@ public class StoryWorker {
 			storyDataClient.getMap(Crawlers.COOKIES).fastRemoveAsync(task.getLogUrl());
 			
 			storyDataClient.getMap(Crawlers.STORY_PIPELINE).fastRemoveAsync(task.getLogUrl());
+			
+			storyDataClient.getMap(Crawlers.BACKLOG_REPUSH).fastRemoveAsync(task.getLogUrl());
 			
 			storyDataClient.getList(Crawlers.PREFIX_TASK_RELATED_URLS + task.getLogUrl()).clear();
 			

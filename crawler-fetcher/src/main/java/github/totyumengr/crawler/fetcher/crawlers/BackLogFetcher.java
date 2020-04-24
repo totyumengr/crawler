@@ -8,7 +8,6 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.lang3.RandomUtils;
 import org.redisson.api.RedissonClient;
@@ -51,10 +50,6 @@ public class BackLogFetcher extends BaseSeimiCrawler {
 	@Autowired
 	private RedissonClient fetcherClient;
 	
-	@Value("${backlog.initialDelay}")
-	private int initialDelay;
-	@Value("${backlog.period}")
-	private int period;
 	@Value("${backlog.proxy.authName}")
 	private String proxyAuthenticatorName;
 	@Value("${backlog.proxy.authPassword}")
@@ -81,9 +76,9 @@ public class BackLogFetcher extends BaseSeimiCrawler {
 		@Override
 		public void run() {
 			
-			try {
-				Object url = backlogClient.getQueue(Crawlers.BACKLOG).poll();
-				if (url != null) {
+			while(true) {
+				try {
+					Object url = backlogClient.getBlockingQueue(Crawlers.BACKLOG).take();
 					logger.debug("Get a fetch task, url={}", url);
 					Request req = Request.build(url.toString(), "handleResponse");
 					req.setCrawlerName(Crawlers.BACKLOG);
@@ -101,9 +96,9 @@ public class BackLogFetcher extends BaseSeimiCrawler {
 
 					CrawlerCache.consumeRequest(req);
 					logger.info("Submit a fetch task, url={}", url);
+				} catch (Exception e) {
+					logger.warn("Ignore unexpect error occurred.", e);
 				}
-			} catch (Exception e) {
-				logger.warn("Ignore unexpect error occurred.", e);
 			}
 		}
 	}
@@ -192,6 +187,7 @@ public class BackLogFetcher extends BaseSeimiCrawler {
 		logger.info("Push into queue={} which response of url={}", Crawlers.RAWDATA, url);
 	}
 	
+	
 	/**
 	 * 启动时空跑。
 	 */
@@ -199,8 +195,7 @@ public class BackLogFetcher extends BaseSeimiCrawler {
 	public String[] startUrls() {
 		
 		// TODO: 需要改一下，但取回任务到本地有丢失风险。
-		Executors.newSingleThreadScheduledExecutor().scheduleWithFixedDelay(new FetchTask(fetcherClient),
-				initialDelay, period, TimeUnit.SECONDS);
+		Executors.newSingleThreadExecutor().execute(new FetchTask(fetcherClient));
 		logger.info("Start to watch {}", Crawlers.BACKLOG);
 		
 		return new String[0];
@@ -245,6 +240,7 @@ public class BackLogFetcher extends BaseSeimiCrawler {
 	@Override
 	public String proxy() {
 		
+		String wrongStyle = "~~http://1.2.3.4:1234";
 		try {
 			String useProxyIp = PROXY_LOCAL.get();
 			if (useProxyIp == null) {
@@ -263,10 +259,10 @@ public class BackLogFetcher extends BaseSeimiCrawler {
 			
 		} catch (Exception e) {
 			logger.warn("Ignore error when try to get a proxy IP", e);
-			return null;
+			return wrongStyle;
 		}
 		
-		return null;
+		return wrongStyle;
 	}
 
 }
