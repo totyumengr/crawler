@@ -4,6 +4,7 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
@@ -20,6 +21,7 @@ public final class Crawlers {
 	// Redis Keys ----------------------------------------
 	// Queue
 	public static final String BACKLOG = "crawler.backlog";
+	public static final String EMULATOR_BACKLOG = "crawler.backlog.emulator";
 	public static final String RAWDATA = "crawler.rawdata";
 
 	// Map
@@ -46,6 +48,7 @@ public final class Crawlers {
 	public static final String CONTENT = "content";
 	public static final String REPOST = "repost";
 	public static final String REPOST_COOKIE = "repost.cookie";
+	public static final String SEARCH_KEYWORD = "_kw_";
 	
 	public static final String TASK_TEMPLATE = "template";
 	public static final String TASK_PARAMS = "params";
@@ -56,6 +59,107 @@ public final class Crawlers {
 	public static final String PLEASE_SET_EXTRACT_XPATH = "PLEASE_SET_EXTRACT_XPATH";
 	
 	public static final Gson GSON = new GsonBuilder().disableHtmlEscaping().create();
+	
+	public static class Task {
+		
+		private String name;
+		private String fromUrl;
+		private String extractor;
+		private Map<String, String> extractRules;
+		private boolean pageDown;
+		private String landing;
+		private List<Map<String, String>> cookies;
+		private int pageDownCount;
+		// 相当于Bin-log
+		private boolean traceLog = true;
+		private Map<String, String> emulator;
+		
+		public Map<String, String> getEmulator() {
+			return emulator;
+		}
+		public void setEmulator(Map<String, String> emulator) {
+			this.emulator = emulator;
+		}
+		public int getPageDownCount() {
+			return pageDownCount;
+		}
+		public void setPageDownCount(int pageDownCount) {
+			this.pageDownCount = pageDownCount;
+		}
+		public List<Map<String, String>> getCookies() {
+			return cookies;
+		}
+		public void setCookies(List<Map<String, String>> cookies) {
+			this.cookies = cookies;
+		}
+		public Map<String, String> getExtractRules() {
+			return extractRules;
+		}
+		public void setExtractRules(Map<String, String> extractRules) {
+			this.extractRules = extractRules;
+		}
+		public String getName() {
+			return name;
+		}
+		public void setName(String name) {
+			this.name = name;
+		}
+		public String getFromUrl() {
+			return fromUrl;
+		}
+		public void setFromUrl(String fromUrl) {
+			this.fromUrl = fromUrl;
+		}
+		public String getExtractor() {
+			return extractor;
+		}
+		public void setExtractor(String extractor) {
+			this.extractor = extractor;
+		}
+		public boolean isPageDown() {
+			return pageDown;
+		}
+		public void setPageDown(boolean pageDown) {
+			this.pageDown = pageDown;
+		}
+		public String getLanding() {
+			return landing;
+		}
+		public void setLanding(String landing) {
+			this.landing = landing;
+		}
+		
+		public boolean isTraceLog() {
+			return traceLog;
+		}
+		public void setTraceLog(boolean traceLog) {
+			this.traceLog = traceLog;
+		}
+
+		// ------------------------ 这几个属性不是预定义的，内部处理用
+		private String storyName;
+		private String logUrl;
+		private String repostUrl;
+		
+		public String getRepostUrl() {
+			return repostUrl;
+		}
+		public void setRepostUrl(String repostUrl) {
+			this.repostUrl = repostUrl;
+		}
+		public String getLogUrl() {
+			return logUrl;
+		}
+		public void setLogUrl(String logUrl) {
+			this.logUrl = logUrl;
+		}
+		public String getStoryName() {
+			return storyName;
+		}
+		public void setStoryName(String storyName) {
+			this.storyName = storyName;
+		}
+	}
 	
 	public static String prepareUrl(String fullPath, String partPath) {
 		

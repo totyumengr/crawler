@@ -1,6 +1,5 @@
 package github.totyumengr.crawler.worker.task;
 
-import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.CountDownLatch;
@@ -19,6 +18,7 @@ import org.springframework.stereotype.Component;
 import com.google.gson.reflect.TypeToken;
 
 import github.totyumengr.crawler.Crawlers;
+import github.totyumengr.crawler.Crawlers.Task;
 import github.totyumengr.crawler.worker.story.StoryWorker;
 
 /**
@@ -41,100 +41,6 @@ public class TaskWorker {
 	private int initialDelay;
 	@Value("${worker.period}")
 	private int period;
-	
-	public static class Task {
-		
-		private String name;
-		private String fromUrl;
-		private String extractor;
-		private Map<String, String> extractRules;
-		private boolean pageDown;
-		private String landing;
-		private List<Map<String, String>> cookies;
-		private int pageDownCount;
-		// 相当于Bin-log
-		private boolean traceLog = true;
-		
-		public int getPageDownCount() {
-			return pageDownCount;
-		}
-		public void setPageDownCount(int pageDownCount) {
-			this.pageDownCount = pageDownCount;
-		}
-		public List<Map<String, String>> getCookies() {
-			return cookies;
-		}
-		public void setCookies(List<Map<String, String>> cookies) {
-			this.cookies = cookies;
-		}
-		public Map<String, String> getExtractRules() {
-			return extractRules;
-		}
-		public void setExtractRules(Map<String, String> extractRules) {
-			this.extractRules = extractRules;
-		}
-		public String getName() {
-			return name;
-		}
-		public void setName(String name) {
-			this.name = name;
-		}
-		public String getFromUrl() {
-			return fromUrl;
-		}
-		public void setFromUrl(String fromUrl) {
-			this.fromUrl = fromUrl;
-		}
-		public String getExtractor() {
-			return extractor;
-		}
-		public void setExtractor(String extractor) {
-			this.extractor = extractor;
-		}
-		public boolean isPageDown() {
-			return pageDown;
-		}
-		public void setPageDown(boolean pageDown) {
-			this.pageDown = pageDown;
-		}
-		public String getLanding() {
-			return landing;
-		}
-		public void setLanding(String landing) {
-			this.landing = landing;
-		}
-		
-		public boolean isTraceLog() {
-			return traceLog;
-		}
-		public void setTraceLog(boolean traceLog) {
-			this.traceLog = traceLog;
-		}
-
-		// ------------------------ 这几个属性不是预定义的，内部处理用
-		private String storyName;
-		private String logUrl;
-		private String repostUrl;
-		
-		public String getRepostUrl() {
-			return repostUrl;
-		}
-		public void setRepostUrl(String repostUrl) {
-			this.repostUrl = repostUrl;
-		}
-		public String getLogUrl() {
-			return logUrl;
-		}
-		public void setLogUrl(String logUrl) {
-			this.logUrl = logUrl;
-		}
-		public String getStoryName() {
-			return storyName;
-		}
-		public void setStoryName(String storyName) {
-			this.storyName = storyName;
-		}
-	}
 	
 	class NextPage implements Runnable {
 		
@@ -312,7 +218,49 @@ public class TaskWorker {
 		task.setFromUrl(url);
 		task.setStoryName(storyName);
 		
-		// Delegate
-		return submitTask(storyName, task);
+		if (task.getEmulator() != null) {
+			// 如果是浏览器执行的任务
+			return submitEmulatorTask(storyName, task);
+		} else {
+			// HTTP-Jar执行的任务
+			return submitTask(storyName, task);
+		}
+	}
+	
+	
+	public Task submitEmulatorTask(String storyName, Task task) throws Exception {
+		
+		CountDownLatch countDown = new CountDownLatch(1);
+		
+		ScheduledExecutorService emulatorSE = Executors.newSingleThreadScheduledExecutor();
+		emulatorSE.scheduleWithFixedDelay(new CurrentPage(task, countDown),
+				initialDelay, period, TimeUnit.SECONDS);
+		
+		// 第一步：设置Extractor类型
+		structDataClient.getMap(Crawlers.EXTRACTOR).put(task.getFromUrl(), task.getExtractor());
+		
+		// 第四步：Launch
+		structDataClient.getQueue(Crawlers.EMULATOR_BACKLOG).add(Crawlers.GSON.toJson(task));
+		logger.info("Launch emulator task fromUrl={}", task.getFromUrl());
+		
+		// 记录Trace
+		if (task.isTraceLog()) {
+			task.setLogUrl(task.getFromUrl());
+			structDataClient.getList(Crawlers.PREFIX_STORY_TRACE + task.getStoryName()).add(Crawlers.GSON.toJson(task));
+		}
+		
+		countDown.await();
+		emulatorSE.shutdown();
+		
+		try {
+			// 第五步：落地任务结果
+			ResultExporter exporter = applicationContext.getBean(task.getLanding(), ResultExporter.class);
+			logger.info("Start exporter on fromUrl={}", task.getFromUrl());
+			exporter.export(task);
+		} catch (Exception e) {
+			logger.error("Error when export task={}", task.getFromUrl());
+		}
+		
+		return task;
 	}
 }

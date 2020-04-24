@@ -7,8 +7,8 @@ import java.util.List;
 import org.springframework.stereotype.Component;
 
 import github.totyumengr.crawler.Crawlers;
+import github.totyumengr.crawler.Crawlers.Task;
 import github.totyumengr.crawler.worker.task.ResultExporter;
-import github.totyumengr.crawler.worker.task.TaskWorker.Task;
 
 /**
  * 将抓取结果保存到流水线中，供下游取用。

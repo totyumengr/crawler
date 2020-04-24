@@ -24,8 +24,8 @@ import org.springframework.stereotype.Component;
 import com.google.gson.reflect.TypeToken;
 
 import github.totyumengr.crawler.Crawlers;
+import github.totyumengr.crawler.Crawlers.Task;
 import github.totyumengr.crawler.worker.task.TaskWorker;
-import github.totyumengr.crawler.worker.task.TaskWorker.Task;
 
 /**
  * 根据JSON格式的任务描述文件，指定执行计划
@@ -105,7 +105,6 @@ public class StoryWorker {
 				
 				Object storyInQueue = storyDataClient.getQueue(STORY_FILE_QUEYE).poll();
 				if (storyInQueue == null) {
-					logger.info("Do not obtain a story... Directly return");
 					return;
 				}
 				
@@ -174,10 +173,10 @@ public class StoryWorker {
 				}
 			} catch (Exception e) {
 				logger.error("Fail to execute task.", e);
+			} finally {
+				// 执行清理任务
+				closeStory(story);
 			}
-			
-			// 执行清理任务
-			closeStory(story);
 		}
 	}
 	
@@ -193,7 +192,7 @@ public class StoryWorker {
 	
 	private void preStory(Story story) {
 		
-		if (story.getArgsEL() != null) {
+		if (story.getArgsEL() != null && !story.getArgsEL().isEmpty()) {
 			String[] range = story.getArgsEL().split(",");
 			int start = Integer.valueOf(range[0]);
 			int end = Integer.valueOf(range[1]);

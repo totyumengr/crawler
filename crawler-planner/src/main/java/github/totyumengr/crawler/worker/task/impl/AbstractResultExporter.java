@@ -12,8 +12,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import com.google.gson.reflect.TypeToken;
 
 import github.totyumengr.crawler.Crawlers;
+import github.totyumengr.crawler.Crawlers.Task;
 import github.totyumengr.crawler.worker.task.ResultExporter;
-import github.totyumengr.crawler.worker.task.TaskWorker.Task;
 
 public abstract class AbstractResultExporter implements ResultExporter {
 

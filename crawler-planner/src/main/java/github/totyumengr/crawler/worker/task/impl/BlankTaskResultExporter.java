@@ -4,8 +4,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
+import github.totyumengr.crawler.Crawlers.Task;
 import github.totyumengr.crawler.worker.task.ResultExporter;
-import github.totyumengr.crawler.worker.task.TaskWorker.Task;
 
 @Component("no")
 public class BlankTaskResultExporter implements ResultExporter {
