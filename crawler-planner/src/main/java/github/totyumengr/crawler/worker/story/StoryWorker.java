@@ -276,7 +276,7 @@ public class StoryWorker {
 			storyDataClient.getList(Crawlers.PREFIX_TASK_RELATED_URLS + task.getLogUrl()).clear();
 			
 			// 未定义到Crawlers中。
-			storyDataClient.getMap(STORY_TASKS).fastRemoveAsync(task.getName());
+//			storyDataClient.getMap(STORY_TASKS).fastRemoveAsync(task.getName());
 			
 			logger.info("Done... Clean intermidiate data url={}", task.getLogUrl());
 		} catch (Exception e) {

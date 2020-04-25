@@ -112,7 +112,8 @@ public class SeleniumFetcher {
 			SearchScript ss = Crawlers.GSON.fromJson(Crawlers.GSON.toJson(task.getEmulator()), SearchScript.class);
 			Map<String, String> params = Crawlers.parseParams(task.getFromUrl());
 			ss.setKeyword(params.get(Crawlers.SEARCH_KEYWORD));
-			ss.setUrl(task.getFromUrl().replaceAll(Crawlers.SEARCH_KEYWORD + "=" + ss.getKeyword(), ""));
+//			ss.setUrl(task.getFromUrl().replaceAll(Crawlers.SEARCH_KEYWORD + "=" + ss.getKeyword(), ""));
+			ss.setUrl(task.getFromUrl());
 			
 			return ss;
 		}
