@@ -56,7 +56,10 @@ public class FileTaskResultExporter extends AbstractResultExporter implements Re
 				File taskFile = new File(storyFolder, convertUrlToFileName(task.getFromUrl()));
 				FileUtils.touch(taskFile);
 				
-				FileUtils.writeLines(taskFile, c, true);	
+				// 模板方法
+				List<String> writeTo = preWriteToFile(c);
+				
+				FileUtils.writeLines(taskFile, writeTo, true);	
 				logger.info("Done... Write content to file. {}", task.getFromUrl());
 			} else {
 				logger.info("Do not write to file because empty... {}", task.getFromUrl());
@@ -64,6 +67,11 @@ public class FileTaskResultExporter extends AbstractResultExporter implements Re
 		} catch (IOException e) {
 			logger.error("Error when try to export task result url={}", task.getFromUrl());
 		}
+	}
+	
+	protected List<String> preWriteToFile(List<String> contents) {
+		// Do nothing
+		return contents;
 	}
 	
 	private String convertUrlToFileName(String url) {

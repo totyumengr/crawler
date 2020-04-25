@@ -54,6 +54,11 @@ public class DynamicIpPoolChecker extends BaseSeimiCrawler {
 	@Value("${fetcher.ippool.fullupdate.afternchecker}")
 	private int afterNChecker;
 	
+	@Value("${backlog.proxy.authName}")
+	private String proxyAuthenticatorName;
+	@Value("${backlog.proxy.authPassword}")
+	private String proxyAuthenticatorPassword;
+	
 	private int count;
 	
 	/**
@@ -71,10 +76,17 @@ public class DynamicIpPoolChecker extends BaseSeimiCrawler {
 			try {
 				// 第一次 或者 N轮空次后
 				if (count == 0 || count >= afterNChecker) {
+					// 清楚原来的代理IP
+					checkerClient.getMap(Crawlers.PROXYPOOL).clear();
+					
 					Request ippoolReq = Request.build(ippoolUrl, "handleResponse");
 					ippoolReq.setCrawlerName(IP_POOL_CHECKER);
 					ippoolReq.setSkipDuplicateFilter(true);
 					ippoolReq.setMaxReqCount(1);
+					
+					ippoolReq.setProxyAuthenticatorName(proxyAuthenticatorName);
+					ippoolReq.setProxyAuthenticatorPassword(proxyAuthenticatorPassword);
+					
 					CrawlerCache.consumeRequest(ippoolReq);
 					logger.info("Submit a request, url={}", ippoolUrl);
 					
@@ -88,6 +100,10 @@ public class DynamicIpPoolChecker extends BaseSeimiCrawler {
 					checkReq.setCrawlerName(IP_POOL_CHECKER);
 					checkReq.setSkipDuplicateFilter(true);
 					checkReq.setMaxReqCount(1);
+					
+					checkReq.setProxyAuthenticatorName(proxyAuthenticatorName);
+					checkReq.setProxyAuthenticatorPassword(proxyAuthenticatorPassword);
+					
 					CrawlerCache.consumeRequest(checkReq);
 					logger.info("Submit a request, url={}", checkerUrl);
 				}

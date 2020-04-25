@@ -83,6 +83,9 @@ public class BackLogFetcher extends BaseSeimiCrawler {
 					Request req = Request.build(url.toString(), "handleResponse");
 					req.setCrawlerName(Crawlers.BACKLOG);
 					req.setSkipDuplicateFilter(true);
+					req.setHeader(new HashMap<String, String>(2));
+					req.getHeader().put("Connection", "close");
+					req.getHeader().put("Accept-Encoding", "identity");
 
 					Object cookieList = backlogClient.getMap(Crawlers.COOKIES).get(req.getUrl());
 					if (cookieList != null) {
@@ -216,11 +219,11 @@ public class BackLogFetcher extends BaseSeimiCrawler {
 			Object repushCount = fetcherClient.getMap(Crawlers.BACKLOG_REPUSH).addAndGet(request.getUrl(), 1);
 			if (Integer.valueOf(repushCount.toString()) < repushMaxCount) {
 				fetcherClient.getQueue(Crawlers.BACKLOG).add(request.getUrl());
-				logger.info("Return url={} to backlog because fail to fetch", request.getUrl());
+				logger.info("Return url={} to backlog because fail to fetch. {}", request.getUrl(), repushCount);
 			} else {
 				fetcherClient.getMap(Crawlers.BACKLOG_REPUSH).put(request.getUrl(), 0);
 				doResponse(request.getUrl(), EMPTY_COUNT);
-				logger.info("Fail to fetch url={}", request.getUrl());
+				logger.info("Give up Fail to fetch url={}", request.getUrl());
 			}
 		} catch (Exception e) {
 			logger.error("Error when try to handleErrorRequest, {}", request.getUrl(), e);

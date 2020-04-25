@@ -5,13 +5,15 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 
 import javax.annotation.PostConstruct;
 
+import org.apache.commons.lang3.RandomUtils;
 import org.openqa.selenium.By;
 import org.openqa.selenium.Keys;
+import org.openqa.selenium.Proxy;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.remote.DesiredCapabilities;
 import org.openqa.selenium.remote.RemoteWebDriver;
@@ -42,10 +44,6 @@ public class SeleniumFetcher {
 	@Autowired
 	private RedissonClient fetcherClient;
 	
-	@Value("${fetcher.emulator.initialDelay}")
-	private int initialDelay;
-	@Value("${fetcher.emulator.period}")
-	private int period;
 	@Value("${fetcher.emulator.remoteaddress}")
 	private String remoteWebDriver;
 	
@@ -54,8 +52,6 @@ public class SeleniumFetcher {
 	
 	@Value("${fetcher.emulator.taskmaxretrycount}")
 	private int taskMaxRetryCount;
-	
-	private RemoteWebDriver instance;
 	
 	static class SearchScript {
 		
@@ -116,9 +112,23 @@ public class SeleniumFetcher {
 			SearchScript ss = Crawlers.GSON.fromJson(Crawlers.GSON.toJson(task.getEmulator()), SearchScript.class);
 			Map<String, String> params = Crawlers.parseParams(task.getFromUrl());
 			ss.setKeyword(params.get(Crawlers.SEARCH_KEYWORD));
-			ss.setUrl(task.getFromUrl().replaceAll("Crawlers.SEARCH_KEYWORD=" + ss.getKeyword(), ""));
+			ss.setUrl(task.getFromUrl().replaceAll(Crawlers.SEARCH_KEYWORD + "=" + ss.getKeyword(), ""));
 			
 			return ss;
+		}
+	}
+	
+	private String obtainProxyIP() {
+		
+		Set<Object> proxys = fetcherClient.getMap(Crawlers.PROXYPOOL).keySet();
+		if (proxys != null && proxys.size() > 0) {
+			Object[] ips = proxys.toArray();
+			String useProxyIp = ips[RandomUtils.nextInt(0, ips.length)].toString();
+			logger.info("Use proxy IP={} to build request.", useProxyIp);
+			return "<" + useProxyIp.replaceAll("http://", "") + ">";
+		} else {
+			logger.info("Directly build request.");
+			return null;
 		}
 	}
 	
@@ -129,14 +139,15 @@ public class SeleniumFetcher {
 		@Override
 		public void run() {
 			
-			Object taskData = null;
-			List<String> resultUrls = new ArrayList<String>();
-			Task task;
-			try {
-//				logger.info("111");
-				taskData = fetcherClient.getQueue(Crawlers.EMULATOR_BACKLOG).poll();
-				if (taskData != null) {
+			while (true) {
+				Object taskData = null;
+				List<String> resultUrls = new ArrayList<String>();
+				Task task;
+				RemoteWebDriver instance = null;
+				try {
+					taskData = fetcherClient.getBlockingQueue(Crawlers.EMULATOR_BACKLOG).take();
 					logger.info("Get a emulator task, script={}", taskData);
+					
 					task = Crawlers.GSON.fromJson(taskData.toString(), Task.class);
 					SearchScript search = SearchScript.build(task);
 					
@@ -147,6 +158,13 @@ public class SeleniumFetcher {
 					try {
 						DesiredCapabilities dc = DesiredCapabilities.chrome();
 						dc.setCapability("pageLoadStrategy", "eager");
+						String proxyIp = obtainProxyIP();
+						if (proxyIp != null) {
+							Proxy proxy = new Proxy();
+						    proxy.setHttpProxy(proxyIp);
+						    dc.setCapability("proxy", proxy);
+						    logger.info("Proxy setted. {}", proxyIp);
+						}
 						instance = new RemoteWebDriver(new URL(remoteWebDriver), dc);
 					} catch (Exception e) {
 						throw new IllegalStateException("Can not connect a remote server. " + remoteWebDriver, e);
@@ -155,8 +173,21 @@ public class SeleniumFetcher {
 					logger.info("Start to search it, {} {}", search.getUrl(), search.getKeyword());
 					
 					try {
+						// 打开网页
 						instance.get(search.getUrl());
-						instance.findElement(By.id(search.getKeyWordElementId())).sendKeys(search.getKeyword() + Keys.ENTER);
+						try {
+							Thread.sleep(500);
+						} catch (Exception ignore) {
+							// Ignore
+						}
+						WebElement keyword = new WebDriverWait(instance, pageLoadWaitTime)
+						        .until(ExpectedConditions.visibilityOfElementLocated(By.id(search.getKeyWordElementId())));
+						keyword.sendKeys(search.getKeyword() + Keys.ENTER);
+						try {
+							Thread.sleep(500);
+						} catch (Exception ignore) {
+							// Ignore
+						}
 						WebElement searchResult = new WebDriverWait(instance, pageLoadWaitTime)
 						        .until(ExpectedConditions.visibilityOfElementLocated(By.id(search.getSearchResultContainerElementId())));
 						instance.executeScript("window.scrollTo(0, document.body.scrollHeight);");
@@ -172,17 +203,37 @@ public class SeleniumFetcher {
 							currentPageDownCount++;
 							logger.info("Next page, count {}", currentPageDownCount);
 							instance.executeScript("window.scrollTo(0, document.body.scrollHeight);");
-							// 开始翻页
-							WebElement nextPage = new WebDriverWait(instance, pageLoadWaitTime)
-							        .until(ExpectedConditions.visibilityOfElementLocated(By.xpath(search.getNextPageXpath())));
-							nextPage.click();
-							searchResult = new WebDriverWait(instance, pageLoadWaitTime)
-							        .until(ExpectedConditions.visibilityOfElementLocated(By.id(search.getSearchResultContainerElementId())));
-							resultList = searchResult.findElements(By.xpath(search.getRecordXpath()));
-							for (WebElement a : resultList) {
-								String href = a.getAttribute("href");
-								logger.info("Search result found. {}", href);
-								resultUrls.add(href);
+							
+							for (int i =0; i < taskMaxRetryCount; i++) {
+								try {
+									// 开始翻页
+									WebElement nextPage = new WebDriverWait(instance, pageLoadWaitTime)
+									        .until(ExpectedConditions.visibilityOfElementLocated(By.xpath(search.getNextPageXpath())));
+									nextPage.click();
+									try {
+										Thread.sleep(500);
+									} catch (Exception ignore) {
+										// Ignore
+									}
+									searchResult = new WebDriverWait(instance, pageLoadWaitTime)
+									        .until(ExpectedConditions.visibilityOfElementLocated(By.id(search.getSearchResultContainerElementId())));
+									resultList = searchResult.findElements(By.xpath(search.getRecordXpath()));
+									for (WebElement a : resultList) {
+										String href = a.getAttribute("href");
+										logger.info("Search result found. {}", href);
+										resultUrls.add(href);
+									}
+									logger.info("Success to retrive next-page at {}", i);
+									break;
+								} catch (Exception e) {
+									// Continue;
+									logger.info("Try to retrieve next-page at {}", i);
+									try {
+										Thread.sleep(500);
+									} catch (Exception ignore) {
+										// Ignore
+									}
+								}
 							}
 						}
 					} catch (Exception e) {
@@ -208,15 +259,15 @@ public class SeleniumFetcher {
 					String json = Crawlers.GSON.toJson(structData);
 					fetcherClient.getMap(Crawlers.PREFIX_EXTRACT_DATA + task.getExtractor()).put(search.getUrl(), json);
 		    		logger.info("Success to extract for url={}, push into {}", search.getUrl(), Crawlers.PREFIX_EXTRACT_DATA);
-				}
-			} catch (Exception e) {
-				fetcherClient.getQueue(Crawlers.EMULATOR_BACKLOG).add(taskData);
-				logger.error("Error occurred, push back to queue.", e);
-			} finally {
-				try {
-					instance.quit();
-				} catch (Exception ex) {
-					// Ignore
+				} catch (Exception e) {
+					fetcherClient.getQueue(Crawlers.EMULATOR_BACKLOG).add(taskData);
+					logger.error("Error occurred, push back to queue.", e);
+				} finally {
+					try {
+						instance.quit();
+					} catch (Exception ex) {
+						// Ignore
+					}
 				}
 			}
 		}
@@ -225,8 +276,7 @@ public class SeleniumFetcher {
 	@PostConstruct
 	public void init() {
 		
-		Executors.newSingleThreadScheduledExecutor().scheduleWithFixedDelay(new EmulatorTask(),
-				initialDelay, period, TimeUnit.SECONDS);
+		Executors.newSingleThreadExecutor().execute(new EmulatorTask());
 		logger.info("Start to watch {}", Crawlers.EMULATOR_BACKLOG);
 	}
 }
