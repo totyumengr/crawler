@@ -163,9 +163,11 @@ public class BackLogFetcher extends BaseSeimiCrawler {
 				doResponse(response.getUrl(), response.getContent());
 			} else {
 				logger.info("Ignore un-text response of url={}", response.getUrl());
+				doResponse(response.getUrl(), null);
 			}
 		} catch (Exception e) {
 			logger.error("Error when try to handleResponse, {}", response.getRealUrl(), e);
+			doResponse(response.getUrl(), null);
 		}
 	}
 	
