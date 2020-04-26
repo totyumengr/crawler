@@ -63,7 +63,21 @@ public class SeleniumFetcher {
 		private String recordXpath;
 		private int pageDownCount;
 		private String nextPageXpath;
+		private String searchToolXpath;
+		private String timeRangeXpath;
 		
+		public String getSearchToolXpath() {
+			return searchToolXpath;
+		}
+		public void setSearchToolXpath(String searchToolXpath) {
+			this.searchToolXpath = searchToolXpath;
+		}
+		public String getTimeRangeXpath() {
+			return timeRangeXpath;
+		}
+		public void setTimeRangeXpath(String timeRangeXpath) {
+			this.timeRangeXpath = timeRangeXpath;
+		}
 		public String getUrl() {
 			return url;
 		}
@@ -181,6 +195,7 @@ public class SeleniumFetcher {
 						} catch (Exception ignore) {
 							// Ignore
 						}
+						
 						WebElement keyword = new WebDriverWait(instance, pageLoadWaitTime)
 						        .until(ExpectedConditions.visibilityOfElementLocated(By.id(search.getKeyWordElementId())));
 						keyword.sendKeys(search.getKeyword() + Keys.ENTER);
@@ -188,6 +203,27 @@ public class SeleniumFetcher {
 							Thread.sleep(500);
 						} catch (Exception ignore) {
 							// Ignore
+						}
+						
+						// 设置搜索工具
+						if (search.getSearchToolXpath() != null) {
+							WebElement searchTools = new WebDriverWait(instance, pageLoadWaitTime)
+									.until(ExpectedConditions.presenceOfElementLocated(By.xpath(search.getSearchToolXpath())));
+							searchTools.click();
+							try {
+								Thread.sleep(500);
+							} catch (Exception ignore) {
+								// Ignore
+							}
+							
+							WebElement searchToolsOneMonth = new WebDriverWait(instance, pageLoadWaitTime)
+							        .until(ExpectedConditions.presenceOfElementLocated(By.xpath(search.getTimeRangeXpath())));
+							instance.executeScript("arguments[0].click();", searchToolsOneMonth);
+							try {
+								Thread.sleep(500);
+							} catch (Exception ignore) {
+								// Ignore
+							}
 						}
 						WebElement searchResult = new WebDriverWait(instance, pageLoadWaitTime)
 						        .until(ExpectedConditions.visibilityOfElementLocated(By.id(search.getSearchResultContainerElementId())));
