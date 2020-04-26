@@ -26,7 +26,7 @@ import github.totyumengr.crawler.Crawlers;
  * @author mengran7
  *
  */
-@Crawler(name = DynamicIpPoolChecker.IP_POOL_CHECKER, delay = 1, httpType = SeimiHttpType.OK_HTTP3, httpTimeOut = 10000)
+@Crawler(name = DynamicIpPoolChecker.IP_POOL_CHECKER, delay = 1, httpType = SeimiHttpType.APACHE_HC, httpTimeOut = 10000)
 public class DynamicIpPoolChecker extends BaseSeimiCrawler {
 
 	/**

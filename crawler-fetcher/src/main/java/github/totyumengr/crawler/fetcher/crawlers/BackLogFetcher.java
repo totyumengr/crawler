@@ -37,7 +37,7 @@ import io.netty.buffer.ByteBufUtil;
  * @author mengran7
  *
  */
-@Crawler(name = Crawlers.BACKLOG, delay = 1, httpType = SeimiHttpType.OK_HTTP3, httpTimeOut = 10000)
+@Crawler(name = Crawlers.BACKLOG, delay = 1, httpType = SeimiHttpType.APACHE_HC, httpTimeOut = 10000, useCookie = true)
 public class BackLogFetcher extends BaseSeimiCrawler {
 
 	/**

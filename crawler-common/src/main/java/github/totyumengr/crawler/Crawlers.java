@@ -172,6 +172,14 @@ public final class Crawlers {
 			return partPath;
 		}
 		
+		try {
+			url = new URL(partPath);
+			// 直接返回
+			return partPath;
+		} catch (MalformedURLException e) {
+			// Ignore
+		}
+		
 		if (partPath.startsWith("//")) {
 			// Maybe miss protocol
 			try {
