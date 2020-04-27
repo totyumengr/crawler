@@ -1,10 +1,8 @@
 package github.totyumengr.crawler.fetcher.crawlers;
 
-import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.commons.lang3.RandomUtils;
 import org.redisson.api.RedissonClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -198,28 +196,6 @@ public class DynamicIpPoolChecker extends BaseSeimiCrawler {
 	public String proxy() {
 		
 		String wrongStyle = "~~http://1.2.3.4:1234";
-		try {
-			String useProxyIp = PROXY_LOCAL.get();
-			if (useProxyIp == null) {
-				Set<Object> proxys = checkerClient.getMap(Crawlers.PROXYPOOL).keySet();
-				if (proxys != null && proxys.size() > 0) {
-					Object[] ips = proxys.toArray();
-					useProxyIp = ips[RandomUtils.nextInt(0, ips.length)].toString();
-					PROXY_LOCAL.set(useProxyIp);
-					return useProxyIp;
-				} else {
-					logger.warn("Not have available a proxy ip....");
-				}
-			} else {
-				return useProxyIp;
-			}
-			
-		} catch (Exception e) {
-			logger.warn("Ignore error when try to get a proxy IP", e);
-			return wrongStyle;
-		}
-		
 		return wrongStyle;
 	}
-
 }

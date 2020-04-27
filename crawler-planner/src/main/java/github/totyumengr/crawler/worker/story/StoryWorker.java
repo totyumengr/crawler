@@ -8,6 +8,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 import javax.annotation.PostConstruct;
@@ -95,26 +99,32 @@ public class StoryWorker {
 	@PostConstruct
 	private void init() {
 		
-		ExecutorService storyScanner = Executors.newSingleThreadExecutor();
-		ExecutorService storyRunner = Executors.newFixedThreadPool(storyRunnerParallel);
+		ScheduledExecutorService storyScanner = Executors.newSingleThreadScheduledExecutor();
+		ThreadPoolExecutor storyRunner = new ThreadPoolExecutor(storyRunnerParallel, storyRunnerParallel,
+                0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<Runnable>(0));
 		
-		storyScanner.execute(new Runnable() {
+		logger.info("Start to watch {}", STORY_FILE_QUEYE);
+		storyScanner.scheduleWithFixedDelay(new Runnable() {
 
 			@Override
 			public void run() {
 				
+				Object storyInQueue = null;
 				try {
-					while (true) {
-						Object storyInQueue = storyDataClient.getBlockingQueue(STORY_FILE_QUEYE).take();
+					storyInQueue = storyDataClient.getQueue(STORY_FILE_QUEYE).poll();
+					if (storyInQueue != null) {
+						storyRunner.submit(new StoryRunner(storyInQueue.toString()));
 						// 找到一个Story
 						logger.info("Found a story and submit it. {}", storyInQueue);
-						storyRunner.submit(new StoryRunner(storyInQueue.toString()));
 					}
+				} catch (RejectedExecutionException e) {
+					storyDataClient.getQueue(STORY_FILE_QUEYE).add(storyRunner);
+					logger.info("Reject and push back to queue {}", storyInQueue);
 				} catch (Exception e) {
 					logger.error("Error when try to take a story.", e);
 				}
 			}
-		});
+		}, initialDelay, period, TimeUnit.SECONDS);
 	}
 	
 	private class StoryRunner implements Runnable {
@@ -140,10 +150,12 @@ public class StoryWorker {
 				preStory(story);
 				
 				// 按照顺序执行任务。当前是单线程调度任务。
-				for (String url: story.getArgs()) {
+				int argsSize = story.getArgs().size();
+				for (int j = 0; j < argsSize; j++) {
+					String url = story.getArgs().get(j);
 					for (Map<String, String> task : story.getTasks()) {
 						
-						logger.info("Start task={}", task);
+						logger.info("{}/{} Start task={}", j, argsSize, task);
 						Task submittedTask = null;
 						if (task.get(Crawlers.TASK_PARAMS).equals(Crawlers.TASK_PARAMS_ARGS)) {
 							// 从任务中获取参数，并提交
@@ -165,8 +177,10 @@ public class StoryWorker {
 							} else {
 								List<String> urlList = Crawlers.GSON.fromJson(pipeline.toString(),
 										new TypeToken<List<String>>() {}.getType());
-								for (String pipelineUrl: urlList) {
-									logger.info("Submit task={} using template={}", pipelineUrl, task.get(Crawlers.TASK_TEMPLATE));
+								int urlListSize = urlList.size();
+								for (int i = 0; i < urlListSize; i++) {
+									String pipelineUrl = urlList.get(i);
+									logger.info("{}/{} Submit task={} using template={}", i, urlListSize, pipelineUrl, task.get(Crawlers.TASK_TEMPLATE));
 									taskWorker.submitTask(story.getName(), pipelineUrl, task.get(Crawlers.TASK_TEMPLATE));
 								}
 							}
@@ -249,6 +263,30 @@ public class StoryWorker {
 			
 		} catch (IOException e) {
 			logger.error("Error when try to logging story={}", story.getName());
+		} finally {
+			expireIntermediateData();
+		}
+	}
+	
+	private void expireIntermediateData() {
+		
+		try {
+			storyDataClient.getMap(Crawlers.XPATH_LIST_ELEMENTS).expire(storyTTL.longValue(), TimeUnit.DAYS);
+			storyDataClient.getMap(Crawlers.XPATH_RECORD_ELEMENTS).expire(storyTTL.longValue(), TimeUnit.DAYS);
+			storyDataClient.getMap(Crawlers.XPATH_PAGINGBAR_ELEMENTS).expire(storyTTL.longValue(), TimeUnit.DAYS);
+			storyDataClient.getMap(Crawlers.XPATH_PAGINGBAR_NEXTURL_ELEMENTS).expire(storyTTL.longValue(), TimeUnit.DAYS);
+			
+			storyDataClient.getMap(Crawlers.XPATH_CONTENT).expire(storyTTL.longValue(), TimeUnit.DAYS);
+			
+			storyDataClient.getMap(Crawlers.EXTRACTOR).expire(storyTTL.longValue(), TimeUnit.DAYS);
+			
+			storyDataClient.getMap(Crawlers.COOKIES).expire(storyTTL.longValue(), TimeUnit.DAYS);
+			
+			storyDataClient.getMap(Crawlers.STORY_PIPELINE).expire(storyTTL.longValue(), TimeUnit.DAYS);
+			
+			logger.info("Done... Expire intermidiate data");
+		} catch (Exception e) {
+			logger.error("Error when try to Expire intermidiate data");
 		}
 	}
 	
@@ -256,28 +294,10 @@ public class StoryWorker {
 		
 		try {
 			// TODO: 当前先简单写吧。
-			storyDataClient.getMap(Crawlers.PREFIX_EXTRACT_DATA + task.getExtractor()).fastRemoveAsync(task.getLogUrl());
-			
-			storyDataClient.getMap(Crawlers.XPATH_LIST_ELEMENTS).fastRemoveAsync(task.getLogUrl());
-			storyDataClient.getMap(Crawlers.XPATH_RECORD_ELEMENTS).fastRemoveAsync(task.getLogUrl());
-			storyDataClient.getMap(Crawlers.XPATH_PAGINGBAR_ELEMENTS).fastRemoveAsync(task.getLogUrl());
-			storyDataClient.getMap(Crawlers.XPATH_PAGINGBAR_NEXTURL_ELEMENTS).fastRemoveAsync(task.getLogUrl());
-			
-			storyDataClient.getMap(Crawlers.XPATH_CONTENT).fastRemoveAsync(task.getLogUrl());
-			
-			storyDataClient.getMap(Crawlers.EXTRACTOR).fastRemoveAsync(task.getLogUrl());
-			
-			storyDataClient.getMap(Crawlers.COOKIES).fastRemoveAsync(task.getLogUrl());
-			
-			storyDataClient.getMap(Crawlers.STORY_PIPELINE).fastRemoveAsync(task.getLogUrl());
-			
 			storyDataClient.getMap(Crawlers.BACKLOG_REPUSH).fastRemoveAsync(task.getLogUrl());
 			
-			storyDataClient.getList(Crawlers.PREFIX_TASK_RELATED_URLS + task.getLogUrl()).clear();
-			
-			// 未定义到Crawlers中。
-//			storyDataClient.getMap(STORY_TASKS).fastRemoveAsync(task.getName());
-			
+			storyDataClient.getMap(Crawlers.PREFIX_EXTRACT_DATA + task.getExtractor()).expire(storyTTL.longValue(), TimeUnit.DAYS);
+			storyDataClient.getList(Crawlers.PREFIX_TASK_RELATED_URLS + task.getLogUrl()).expire(storyTTL.longValue(), TimeUnit.DAYS);
 			logger.info("Done... Clean intermidiate data url={}", task.getLogUrl());
 		} catch (Exception e) {
 			logger.error("Error when try to clean intermidiate data url={}", task.getLogUrl());
