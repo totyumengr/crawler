@@ -56,7 +56,10 @@ jar_version=$jar
 echo "3.docker-build"
 docker build -t totyumengr/crawler-fetcher:v${jar_version} .
 echo "4.docker-run"
-docker run -e JAVA_OPTS='-server -Dspring.redis.host=host.docker.internal -Dbacklog.proxy.authName= -Dbacklog.proxy.authPassword= -Dfetcher.ippool.url=http://jdmksp.v4.dailiyun.com/query.txt?key=&word=&count=5&rand=true&detail=false' \
+authName=$1
+authPassword=$2
+authKey=$3
+docker run -e JAVA_OPTS="-server -Dspring.redis.host=host.docker.internal -Dbacklog.proxy.authName=$authName -Dbacklog.proxy.authPassword=$authPassword -Dfetcher.ippool.url=http://jdmksp.v4.dailiyun.com/query.txt?key=$authKey&word=&count=20&rand=true&detail=false" \
     -d --name docker-crawler-fetcher totyumengr/crawler-fetcher:v${jar_version}
 echo "5.done"
 
@@ -102,3 +105,5 @@ docker run -e JAVA_OPTS='-server -Dexporter.story.dir=/usr/local/crawler-data -D
     -v /Users/mengran7/Downloads/03Data/crawler-data:/usr/local/crawler-data -d \
     --name docker-crawler-worker totyumengr/crawler-worker:v${jar_version}
 echo "5.done"
+
+echo "^^^^^^^^^^^^^^-------Yeah-------^^^^^^^^^^^^^^^^^^^^^"
