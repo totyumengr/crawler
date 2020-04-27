@@ -99,8 +99,8 @@ public class StoryWorker {
 	private void init() {
 		
 		ScheduledExecutorService storyScanner = Executors.newSingleThreadScheduledExecutor();
-		ThreadPoolExecutor storyRunner = new ThreadPoolExecutor(storyRunnerParallel, storyRunnerParallel,
-                0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<Runnable>(0));
+		ThreadPoolExecutor storyRunner = new ThreadPoolExecutor((storyRunnerParallel / 3), storyRunnerParallel,
+                0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<Runnable>(1));
 		
 		logger.info("Start to watch {}", STORY_FILE_QUEYE);
 		storyScanner.scheduleWithFixedDelay(new Runnable() {
