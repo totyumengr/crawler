@@ -84,7 +84,7 @@ docker run -e JAVA_OPTS='-server -Dextractor.period=2 -Dspring.redis.host=host.d
     -d --name docker-crawler-extractor totyumengr/crawler-extractor:v${jar_version}
 echo "5.done"
 
-worker_project=${current_dir}/crawler-planner
+worker_project=${current_dir}/crawler-worker
 echo "----------------"
 echo $worker_project
 echo "----------------"

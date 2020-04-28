@@ -26,6 +26,7 @@ import org.springframework.stereotype.Component;
 import com.google.gson.reflect.TypeToken;
 
 import github.totyumengr.crawler.Crawlers;
+import github.totyumengr.crawler.Crawlers.Story;
 import github.totyumengr.crawler.Crawlers.Task;
 import github.totyumengr.crawler.worker.task.TaskWorker;
 
@@ -61,39 +62,6 @@ public class StoryWorker {
 	
 	public static final String STORY_FILE_QUEYE = "worker.story";
 	public static final String STORY_TASKS = "worker.story.tasks";
-	
-	class Story {
-		
-		private String name;
-		private List<Map<String, String>> tasks;
-		private List<String> args;
-		private String argsEL;
-		
-		public String getName() {
-			return name;
-		}
-		public void setName(String name) {
-			this.name = name;
-		}
-		public List<Map<String, String>> getTasks() {
-			return tasks;
-		}
-		public void setTasks(List<Map<String, String>> tasks) {
-			this.tasks = tasks;
-		}
-		public List<String> getArgs() {
-			return args;
-		}
-		public void setArgs(List<String> args) {
-			this.args = args;
-		}
-		public String getArgsEL() {
-			return argsEL;
-		}
-		public void setArgsEL(String argsEL) {
-			this.argsEL = argsEL;
-		}
-	}
 	
 	@PostConstruct
 	private void init() {

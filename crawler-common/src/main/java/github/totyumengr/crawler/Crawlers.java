@@ -61,6 +61,39 @@ public final class Crawlers {
 	
 	public static final Gson GSON = new GsonBuilder().disableHtmlEscaping().create();
 	
+	public static final class Story {
+		
+		private String name;
+		private List<Map<String, String>> tasks;
+		private List<String> args;
+		private String argsEL;
+		
+		public String getName() {
+			return name;
+		}
+		public void setName(String name) {
+			this.name = name;
+		}
+		public List<Map<String, String>> getTasks() {
+			return tasks;
+		}
+		public void setTasks(List<Map<String, String>> tasks) {
+			this.tasks = tasks;
+		}
+		public List<String> getArgs() {
+			return args;
+		}
+		public void setArgs(List<String> args) {
+			this.args = args;
+		}
+		public String getArgsEL() {
+			return argsEL;
+		}
+		public void setArgsEL(String argsEL) {
+			this.argsEL = argsEL;
+		}
+	}
+	
 	public static class Task {
 		
 		private String name;
