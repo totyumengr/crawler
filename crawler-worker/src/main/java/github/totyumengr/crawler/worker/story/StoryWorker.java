@@ -85,7 +85,7 @@ public class StoryWorker {
 						logger.info("Found a story and submit it. {}", storyInQueue);
 					}
 				} catch (RejectedExecutionException e) {
-					storyDataClient.getQueue(STORY_FILE_QUEYE).add(storyRunner);
+					storyDataClient.getQueue(STORY_FILE_QUEYE).add(storyInQueue);
 					logger.info("Reject and push back to queue {}", storyInQueue);
 				} catch (Exception e) {
 					logger.error("Error when try to take a story.", e);
