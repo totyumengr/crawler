@@ -102,12 +102,12 @@ public class BackLogFetcher extends BaseSeimiCrawler {
 					boolean consumed = true;
 					do {
 						consumed = CrawlerCache.tryConsumeRequest(req);
+						logger.info("Try to push request url={}, result={}", url, consumed);
 						if (!consumed) {
 							logger.info("Slowdown...Cannot consume request, current Queue info is={}", model.queueInfo());
 							// 队列已经满了。
 							Thread.sleep(60 * 1000);
 						}
-						logger.info("Queue maybe full, try again url={}", url);
 					} while (!consumed);
 					
 					logger.info("Submit a fetch task, url={}", url);
