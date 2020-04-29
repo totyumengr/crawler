@@ -24,6 +24,7 @@ import cn.wanghaomiao.seimi.http.SeimiCookie;
 import cn.wanghaomiao.seimi.http.SeimiHttpType;
 import cn.wanghaomiao.seimi.spring.common.CrawlerCache;
 import cn.wanghaomiao.seimi.struct.BodyType;
+import cn.wanghaomiao.seimi.struct.CrawlerModel;
 import cn.wanghaomiao.seimi.struct.Request;
 import cn.wanghaomiao.seimi.struct.Response;
 import github.totyumengr.crawler.Crawlers;
@@ -96,8 +97,19 @@ public class BackLogFetcher extends BaseSeimiCrawler {
 
 					req.setProxyAuthenticatorName(proxyAuthenticatorName);
 					req.setProxyAuthenticatorPassword(proxyAuthenticatorPassword);
-
-					CrawlerCache.consumeRequest(req);
+					
+					CrawlerModel model = CrawlerCache.getCrawlerModel(Crawlers.BACKLOG);
+					boolean consumed = true;
+					do {
+						consumed = CrawlerCache.tryConsumeRequest(req);
+						if (!consumed) {
+							logger.info("Slowdown...Cannot consume request, current Queue info is={}", model.queueInfo());
+							// 队列已经满了。
+							Thread.sleep(60 * 1000);
+						}
+						logger.info("Queue maybe full, try again url={}", url);
+					} while (!consumed);
+					
 					logger.info("Submit a fetch task, url={}", url);
 				} catch (Exception e) {
 					logger.warn("Ignore unexpect error occurred.", e);
