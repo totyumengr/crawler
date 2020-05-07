@@ -11,7 +11,7 @@ import org.springframework.stereotype.Component;
 import github.totyumengr.crawler.Crawlers;
 import github.totyumengr.crawler.extractor.Extractor;
 
-@Component("content")
+@Component("content.")
 public class ContentExtractor extends AbstractExtractor implements Extractor {
 	
 	@Override

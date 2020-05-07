@@ -18,6 +18,17 @@ echo "1.maven-build"
 cd $seimi_project
 mvn clean install -DskipTests=true
 
+redis_mode=$4
+if [ -z $redis_mode]
+then
+redis_node_java_opts="-Dspring.redis.mode=single -Dspring.redis.host=host.docker.internal"
+else
+redis_node_java_opts="-Dspring.redis.mode=cluster -Dspring.redis.cluster.nodes=host.docker.internal:7000,host.docker.internal:7001,host.docker.internal:7004"
+fi
+echo "----------------"
+echo $redis_node_java_opts
+echo "----------------"
+
 proxypool_project=${current_dir}/crawler-proxypool
 echo "----------------"
 echo $proxypool_project
@@ -38,7 +49,7 @@ echo "4.docker-run"
 authName=$1
 authPassword=$2
 authKey=$3
-docker run -e JAVA_OPTS="-server -Dspring.redis.host=host.docker.internal -Dbacklog.proxy.authName=$authName -Dbacklog.proxy.authPassword=$authPassword -Dfetcher.ippool.url=http://jdmksp.v4.dailiyun.com/query.txt?key=$authKey&word=&count=50&rand=true&detail=false" \
+docker run -e JAVA_OPTS="-server $redis_node_java_opts -Dbacklog.proxy.authName=$authName -Dbacklog.proxy.authPassword=$authPassword -Dfetcher.ippool.url=http://jdmksp.v4.dailiyun.com/query.txt?key=$authKey&word=&count=50&rand=true&detail=false" \
     -d --name docker-crawler-proxypool totyumengr/crawler-proxypool:v${jar_version}
 echo "5.done"
 
@@ -59,7 +70,7 @@ jar_version=$jar
 echo "3.docker-build"
 docker build -t totyumengr/crawler-emulator:v${jar_version} .
 echo "4.docker-run"
-docker run -e JAVA_OPTS='-server -Dfetcher.emulator.remoteaddress=http://host.docker.internal:4444/wd/hub -Dspring.redis.host=host.docker.internal' \
+docker run -e JAVA_OPTS="-server $redis_node_java_opts -Dfetcher.emulator.remoteaddress=http://host.docker.internal:4444/wd/hub" \
     -d --name docker-crawler-emulator totyumengr/crawler-emulator:v${jar_version}
 echo "5.done"
 
@@ -83,7 +94,7 @@ echo "4.docker-run"
 authName=$1
 authPassword=$2
 authKey=$3
-docker run -e JAVA_OPTS="-server -Dspring.redis.host=host.docker.internal -Dbacklog.proxy.authName=$authName -Dbacklog.proxy.authPassword=$authPassword" \
+docker run -e JAVA_OPTS="-server $redis_node_java_opts -Dbacklog.proxy.authName=$authName -Dbacklog.proxy.authPassword=$authPassword" \
     -d --name docker-crawler-fetcher totyumengr/crawler-fetcher:v${jar_version}
 echo "5.done"
 
@@ -104,7 +115,7 @@ jar_version=$jar
 echo "3.docker-build"
 docker build -t totyumengr/crawler-extractor:v${jar_version} .
 echo "4.docker-run"
-docker run -e JAVA_OPTS='-server -Dextractor.period=1 -Dspring.redis.host=host.docker.internal' \
+docker run -e JAVA_OPTS="-server $redis_node_java_opts -Dextractor.period=1" \
     -d --name docker-crawler-extractor totyumengr/crawler-extractor:v${jar_version}
 echo "5.done"
 
@@ -125,7 +136,7 @@ jar_version=$jar
 echo "3.docker-build"
 docker build -t totyumengr/crawler-worker:v${jar_version} .
 echo "4.docker-run"
-docker run -e JAVA_OPTS='-server -Dworker.period=1 -Dexporter.story.dir=/usr/local/crawler-data -Dspring.redis.host=host.docker.internal' \
+docker run -e JAVA_OPTS="-server $redis_node_java_opts -Dworker.period=1 -Dexporter.story.dir=/usr/local/crawler-data" \
     -v /Users/mengran7/Downloads/03Data/crawler-data:/usr/local/crawler-data -d \
     --name docker-crawler-worker totyumengr/crawler-worker:v${jar_version}
 echo "5.done"

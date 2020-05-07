@@ -12,7 +12,7 @@ import org.springframework.stereotype.Component;
 import github.totyumengr.crawler.Crawlers;
 import github.totyumengr.crawler.extractor.Extractor;
 
-@Component("paging")
+@Component("paging.")
 public class PagingExtractor extends AbstractExtractor implements Extractor {
 
 	@Override
