@@ -23,7 +23,7 @@ if [ -z $redis_mode]
 then
 redis_node_java_opts="-Dspring.redis.mode=single -Dspring.redis.host=host.docker.internal"
 else
-redis_node_java_opts="-Dspring.redis.mode=cluster -Dspring.redis.cluster.nodes=host.docker.internal:7000,host.docker.internal:7001,host.docker.internal:7004"
+redis_node_java_opts="-Dmac.docker.env=true -Dspring.redis.mode=cluster -Dspring.redis.cluster.nodes=host.docker.internal:7000,host.docker.internal:7001,host.docker.internal:7004"
 fi
 echo "----------------"
 echo $redis_node_java_opts
