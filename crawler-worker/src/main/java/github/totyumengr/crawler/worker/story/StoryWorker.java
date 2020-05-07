@@ -241,7 +241,7 @@ public class StoryWorker {
 		
 		try {
 			// TODO: 当前先简单写吧。
-			storyDataClient.getMap(Crawlers.BACKLOG_REPUSH).fastRemoveAsync(task.getLogUrl());
+			storyDataClient.getMap(Crawlers.BACKLOG_REPUSH + task.getStoryName()).fastRemoveAsync(task.getLogUrl());
 			
 			storyDataClient.getMap(Crawlers.XPATH_LIST_ELEMENTS + task.getStoryName()).fastRemoveAsync(task.getLogUrl());
 			storyDataClient.getMap(Crawlers.XPATH_RECORD_ELEMENTS + task.getStoryName()).fastRemoveAsync(task.getLogUrl());

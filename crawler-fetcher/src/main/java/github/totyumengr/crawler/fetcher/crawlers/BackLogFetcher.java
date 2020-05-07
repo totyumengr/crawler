@@ -247,7 +247,7 @@ public class BackLogFetcher extends BaseSeimiCrawler {
 		String storyName = storyNameInMeta == null ? "" : storyNameInMeta.toString();
 		
 		try {
-			Object repushCount = fetcherClient.getMap(Crawlers.BACKLOG_REPUSH).addAndGet(request.getUrl(), 1);
+			Object repushCount = fetcherClient.getMap(Crawlers.BACKLOG_REPUSH + storyName).addAndGet(request.getUrl(), 1);
 			if (Integer.valueOf(repushCount.toString()) < repushMaxCount) {
 				List<String> backlog = new ArrayList<String>(2);
 				backlog.add(storyName);

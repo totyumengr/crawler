@@ -26,7 +26,7 @@ public final class Crawlers {
 
 	// Map
 	public static final String PROXYPOOL = "crawler.proxypool";
-	public static final String BACKLOG_REPUSH = "crawler.backlog.repush";
+	public static final String BACKLOG_REPUSH = "crawler.backlog.repush.";
 	
 	public static final String EXTRACTOR = "crawler.extractor.";
 	public static final String PREFIX_EXTRACT_DATA = "crawler.structdata.";
