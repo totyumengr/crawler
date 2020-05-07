@@ -1,6 +1,7 @@
 package github.totyumengr.crawler.fetcher.crawlers;
 
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -79,14 +80,21 @@ public class BackLogFetcher extends BaseSeimiCrawler {
 			
 			while(true) {
 				try {
-					Object url = backlogClient.getBlockingQueue(Crawlers.BACKLOG).take();
-					logger.debug("Get a fetch task, url={}", url);
-					Request req = Request.build(url.toString(), "handleResponse");
+					Object backlog = backlogClient.getBlockingQueue(Crawlers.BACKLOG).take();
+					logger.debug("Get a fetch task, url={}", backlog);
+					
+					List<String> json = Crawlers.GSON.fromJson(backlog.toString(), new TypeToken<List<String>>() {}.getType());
+					String url = json.get(1);
+					String storyName = json.get(0);
+					
+					Request req = Request.build(url, "handleResponse");
 					req.setCrawlerName(Crawlers.BACKLOG);
 					req.setSkipDuplicateFilter(true);
 					req.setHeader(new HashMap<String, String>(2));
 					req.getHeader().put("Connection", "close");
 					req.getHeader().put("Accept-Encoding", "identity");
+					
+					req.getMeta().put(Crawlers.STORY_NAME, storyName);
 
 					Object cookieList = backlogClient.getMap(Crawlers.COOKIES).get(req.getUrl());
 					if (cookieList != null) {
@@ -118,13 +126,16 @@ public class BackLogFetcher extends BaseSeimiCrawler {
 		}
 	}
 	
-	private static final String EMPTY_COUNT = "<html><head>NO_CONTENT</head><body>NO_CONTENT</body></html>";
+	private static final String EMPTY_COUNT = "<html><body>NO_CONTENT</body></html>";
 	
 	/**
 	 * 成功抓取的URL返回内容。
 	 * @param response 获取的返回文档
 	 */
 	public void handleResponse(Response response) throws Exception {
+		
+		Object storyNameInMeta = response.getRequest().getMeta().get(Crawlers.STORY_NAME);
+		String storyName = storyNameInMeta == null ? "" : storyNameInMeta.toString();
 		
 		try {
 			boolean maybe302 = false;
@@ -171,19 +182,20 @@ public class BackLogFetcher extends BaseSeimiCrawler {
 			}
 			
 			logger.info("Success fetch url={}", response.getUrl());
+			
 			if (BodyType.TEXT.equals(response.getBodyType())) {
-				doResponse(response.getUrl(), response.getContent());
+				doResponse(storyName, response.getUrl(), response.getContent());
 			} else {
 				logger.info("Ignore un-text response of url={}", response.getUrl());
-				doResponse(response.getUrl(), null);
+				doResponse(storyName, response.getUrl(), null);
 			}
 		} catch (Exception e) {
 			logger.error("Error when try to handleResponse, {}", response.getRealUrl(), e);
-			doResponse(response.getUrl(), null);
+			doResponse(storyName, response.getUrl(), null);
 		}
 	}
 	
-	private void doResponse(String url, String content) throws Exception {
+	private void doResponse(String storyName, String url, String content) throws Exception {
 		// Push response to raw-data status
 		Map<String, String> rawData = new HashMap<String, String>(2);
 		String hexUrl = ByteBufUtil.hexDump(url.getBytes("UTF-8"));
@@ -194,6 +206,8 @@ public class BackLogFetcher extends BaseSeimiCrawler {
 		}
 		String hexContent = ByteBufUtil.hexDump(realContent.getBytes("UTF-8"));
 		rawData.put(Crawlers.CONTENT, hexContent);
+		
+		rawData.put(Crawlers.STORY_NAME, storyName);
 		
 		// TODO: 没有放开Re-push的口，还不支持
 //			logger.info("Repost request because 302 change cookie.");
@@ -229,14 +243,20 @@ public class BackLogFetcher extends BaseSeimiCrawler {
 	@Override
 	public void handleErrorRequest(Request request) {
 		
+		Object storyNameInMeta = request.getMeta().get(Crawlers.STORY_NAME);
+		String storyName = storyNameInMeta == null ? "" : storyNameInMeta.toString();
+		
 		try {
 			Object repushCount = fetcherClient.getMap(Crawlers.BACKLOG_REPUSH).addAndGet(request.getUrl(), 1);
 			if (Integer.valueOf(repushCount.toString()) < repushMaxCount) {
-				fetcherClient.getQueue(Crawlers.BACKLOG).add(request.getUrl());
+				List<String> backlog = new ArrayList<String>(2);
+				backlog.add(storyName);
+				backlog.add(request.getUrl());
+				fetcherClient.getQueue(Crawlers.BACKLOG).add(Crawlers.GSON.toJson(backlog));
 				logger.info("Return url={} to backlog because fail to fetch. {}", request.getUrl(), repushCount);
 			} else {
 				fetcherClient.getMap(Crawlers.BACKLOG_REPUSH).put(request.getUrl(), 0);
-				doResponse(request.getUrl(), EMPTY_COUNT);
+				doResponse(storyName, request.getUrl(), EMPTY_COUNT);
 				logger.info("Give up Fail to fetch url={}", request.getUrl());
 			}
 		} catch (Exception e) {

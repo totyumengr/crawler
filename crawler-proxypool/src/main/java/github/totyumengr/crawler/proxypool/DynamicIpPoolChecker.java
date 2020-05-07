@@ -1,4 +1,4 @@
-package github.totyumengr.crawler.fetcher.crawlers;
+package github.totyumengr.crawler.proxypool;
 
 import java.util.Set;
 import java.util.concurrent.Executors;

@@ -16,11 +16,11 @@ import github.totyumengr.crawler.extractor.Extractor;
 public class PagingExtractor extends AbstractExtractor implements Extractor {
 
 	@Override
-	protected Map<String, Object> doExtract(String url, JXDocument document, List<List<String>> coreData) {
+	protected Map<String, Object> doExtract(String storyName, String url, JXDocument document, List<List<String>> coreData) {
 		
 		Map<String, Object> extraData = new HashMap<String, Object>();
 		
-		Object listXpath = extractDataClient.getMap(Crawlers.XPATH_LIST_ELEMENTS).get(url);
+		Object listXpath = extractDataClient.getMap(Crawlers.XPATH_LIST_ELEMENTS + storyName).get(url);
 		if (listXpath == null) {
 			logger.info("Directly return because can not found {} of url={}", Crawlers.XPATH_LIST_ELEMENTS, url);
 			return extraData;
@@ -32,18 +32,18 @@ public class PagingExtractor extends AbstractExtractor implements Extractor {
             logger.info("Using {} to extract block count={}", listXpath, records.size());
             // 继续结构化提取每一个区块的内容
             for (JXNode record : records) {
-            	List<String> struct = extractRecord(url, record);
+            	List<String> struct = extractRecord(storyName, url, record);
             	coreData.add(struct);
             }
         }
         
         // 开始解析分页
-        Object barXpath = extractDataClient.getMap(Crawlers.XPATH_PAGINGBAR_ELEMENTS).get(url);
+        Object barXpath = extractDataClient.getMap(Crawlers.XPATH_PAGINGBAR_ELEMENTS + storyName).get(url);
 		if (barXpath == null) {
 			logger.info("Can not extract pagingbar of url={}", url);
 		} else {
 			JXNode bar = document.selNOne(barXpath.toString());
-			String nextPageUrl = extractPagingBar(url, bar);
+			String nextPageUrl = extractPagingBar(storyName, url, bar);
 			if (nextPageUrl != null) {
 				String fullPathNextPageUrl = Crawlers.prepareUrl(url, nextPageUrl);
 				logger.info("Convert original nextPageUrl={} to {}", nextPageUrl, fullPathNextPageUrl);
@@ -60,10 +60,10 @@ public class PagingExtractor extends AbstractExtractor implements Extractor {
 	 * @param blockNode 页面里面的某一条列表节点
 	 * @return 结构化提取的内容
 	 */
-	protected List<String> extractRecord(String url, JXNode blockNode) {
+	protected List<String> extractRecord(String storyName, String url, JXNode blockNode) {
 		
 		// 根据配置规则进行元素级内容的提取，并且进行结构化存储。
-		Object blockXpath = extractDataClient.getMap(Crawlers.XPATH_RECORD_ELEMENTS).get(url);
+		Object blockXpath = extractDataClient.getMap(Crawlers.XPATH_RECORD_ELEMENTS + storyName).get(url);
 		if (blockXpath == null) {
 			logger.info("{} Return because can not found {} of url={}", Crawlers.PLEASE_SET_EXTRACT_XPATH, Crawlers.XPATH_RECORD_ELEMENTS, url);
 			List<String> html = new ArrayList<String>(1);
@@ -91,7 +91,7 @@ public class PagingExtractor extends AbstractExtractor implements Extractor {
 	 * @param pagingNode 分页节点
 	 * @return 下一页的URL
 	 */
-	protected String extractPagingBar(String url, JXNode pagingNode) {
+	protected String extractPagingBar(String storyName, String url, JXNode pagingNode) {
 		
 		// 解析当前页标识，并且发起下一页的抓取请求，并且设置解析器类型
 		if (pagingNode == null) {
@@ -99,7 +99,7 @@ public class PagingExtractor extends AbstractExtractor implements Extractor {
 			return null;
 		}
 		
-		Object nextUrl = extractDataClient.getMap(Crawlers.XPATH_PAGINGBAR_NEXTURL_ELEMENTS).get(url);
+		Object nextUrl = extractDataClient.getMap(Crawlers.XPATH_PAGINGBAR_NEXTURL_ELEMENTS + storyName).get(url);
 		if (nextUrl == null) {
 			logger.info("{} Return because can not found {} of url={}", Crawlers.PLEASE_SET_EXTRACT_XPATH, Crawlers.XPATH_PAGINGBAR_NEXTURL_ELEMENTS, url);
 			return null;

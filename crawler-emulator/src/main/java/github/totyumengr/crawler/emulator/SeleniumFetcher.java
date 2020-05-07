@@ -6,6 +6,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import javax.annotation.PostConstruct;
@@ -15,6 +16,7 @@ import org.openqa.selenium.By;
 import org.openqa.selenium.Keys;
 import org.openqa.selenium.Proxy;
 import org.openqa.selenium.WebElement;
+import org.openqa.selenium.remote.CapabilityType;
 import org.openqa.selenium.remote.DesiredCapabilities;
 import org.openqa.selenium.remote.RemoteWebDriver;
 import org.openqa.selenium.support.ui.ExpectedConditions;
@@ -25,6 +27,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+
+import com.github.monkeywie.proxyee.server.HttpProxyServer;
 
 import github.totyumengr.crawler.Crawlers;
 import github.totyumengr.crawler.Crawlers.Task;
@@ -53,85 +57,15 @@ public class SeleniumFetcher {
 	@Value("${fetcher.emulator.taskmaxretrycount}")
 	private int taskMaxRetryCount;
 	
-	static class SearchScript {
-		
-		private String url;
-		private String keyword;
-
-		private String keyWordElementId;
-		private String searchResultContainerElementId;
-		private String recordXpath;
-		private int pageDownCount;
-		private String nextPageXpath;
-		private String searchToolXpath;
-		private String timeRangeXpath;
-		
-		public String getSearchToolXpath() {
-			return searchToolXpath;
-		}
-		public void setSearchToolXpath(String searchToolXpath) {
-			this.searchToolXpath = searchToolXpath;
-		}
-		public String getTimeRangeXpath() {
-			return timeRangeXpath;
-		}
-		public void setTimeRangeXpath(String timeRangeXpath) {
-			this.timeRangeXpath = timeRangeXpath;
-		}
-		public String getUrl() {
-			return url;
-		}
-		public void setUrl(String url) {
-			this.url = url;
-		}
-		public String getKeyWordElementId() {
-			return keyWordElementId;
-		}
-		public void setKeyWordElementId(String keyWordElementId) {
-			this.keyWordElementId = keyWordElementId;
-		}
-		public String getKeyword() {
-			return keyword;
-		}
-		public void setKeyword(String keyword) {
-			this.keyword = keyword;
-		}
-		public String getSearchResultContainerElementId() {
-			return searchResultContainerElementId;
-		}
-		public void setSearchResultContainerElementId(String searchResultContainerElementId) {
-			this.searchResultContainerElementId = searchResultContainerElementId;
-		}
-		public String getRecordXpath() {
-			return recordXpath;
-		}
-		public void setRecordXpath(String recordXpath) {
-			this.recordXpath = recordXpath;
-		}
-		public int getPageDownCount() {
-			return pageDownCount;
-		}
-		public void setPageDownCount(int pageDownCount) {
-			this.pageDownCount = pageDownCount;
-		}
-		public String getNextPageXpath() {
-			return nextPageXpath;
-		}
-		public void setNextPageXpath(String nextPageXpath) {
-			this.nextPageXpath = nextPageXpath;
-		}
-		
-		static SearchScript build(Task task) {
-			
-			SearchScript ss = Crawlers.GSON.fromJson(Crawlers.GSON.toJson(task.getEmulator()), SearchScript.class);
-			Map<String, String> params = Crawlers.parseParams(task.getFromUrl());
-			ss.setKeyword(params.get(Crawlers.SEARCH_KEYWORD));
-//			ss.setUrl(task.getFromUrl().replaceAll(Crawlers.SEARCH_KEYWORD + "=" + ss.getKeyword(), ""));
-			ss.setUrl(task.getFromUrl());
-			
-			return ss;
-		}
-	}
+	@Value("${backlog.proxy.authName}")
+	private String proxyUserName;
+	@Value("${backlog.proxy.authPassword}")
+	private String proxyUserPassword;
+	
+	@Value("${proxypool.forwardproxy.port}")
+	private int serverPort;
+	@Value("${proxypool.forwardproxy.ip}")
+	private String serverIp;
 	
 	private String obtainProxyIP() {
 		
@@ -140,10 +74,26 @@ public class SeleniumFetcher {
 			Object[] ips = proxys.toArray();
 			String useProxyIp = ips[RandomUtils.nextInt(0, ips.length)].toString();
 			logger.info("Use proxy IP={} to build request.", useProxyIp);
-			return "<" + useProxyIp.replaceAll("http://", "") + ">";
+			return useProxyIp.replaceAll("http://", "");
 		} else {
 			logger.info("Directly build request.");
 			return null;
+		}
+	}
+	
+	private class ForwardProxyTask implements Runnable {
+
+		private HttpProxyServer server;
+		
+		public ForwardProxyTask(HttpProxyServer server) {
+			super();
+			this.server = server;
+		}
+
+		@Override
+		public void run() {
+			
+			server.start(serverPort);
 		}
 	}
 	
@@ -159,6 +109,8 @@ public class SeleniumFetcher {
 				List<String> resultUrls = new ArrayList<String>();
 				Task task;
 				RemoteWebDriver instance = null;
+				HttpProxyServer proxyServer = null;
+				ExecutorService proxyServerExecutor = Executors.newSingleThreadExecutor();
 				try {
 					taskData = fetcherClient.getBlockingQueue(Crawlers.EMULATOR_BACKLOG).take();
 					logger.info("Get a emulator task, script={}", taskData);
@@ -172,13 +124,26 @@ public class SeleniumFetcher {
 					
 					try {
 						DesiredCapabilities dc = DesiredCapabilities.chrome();
-						dc.setCapability("pageLoadStrategy", "eager");
-						String proxyIp = obtainProxyIP();
-						if (proxyIp != null) {
-							Proxy proxy = new Proxy();
-						    proxy.setHttpProxy(proxyIp);
-						    dc.setCapability("proxy", proxy);
-						    logger.info("Proxy setted. {}", proxyIp);
+						dc.setCapability(CapabilityType.PAGE_LOAD_STRATEGY, "eager");
+						if (serverIp != null) {
+							
+							ForwardProxy forwardProxy = new ForwardProxy(proxyUserName, proxyUserPassword);
+							String proxyAddress = obtainProxyIP();
+							String[] ipPort = (proxyAddress == null ? "" : proxyAddress).split(":");
+							if (ipPort.length > 1) {
+								proxyServer = forwardProxy.buildProxy(ipPort[0], Integer.valueOf(ipPort[1]));
+								proxyServerExecutor.execute(new ForwardProxyTask(proxyServer));
+								try {
+									Thread.sleep(500);
+								} catch (Exception ignore) {
+									// Ignore
+								}
+								Proxy proxy = new Proxy();
+							    proxy.setHttpProxy(serverIp + ":" + serverPort);
+							    proxy.setSslProxy(serverIp + ":" + serverPort);
+							    dc.setCapability(CapabilityType.PROXY, proxy);
+							    logger.info("Proxy setted. {}", proxy.getHttpProxy());
+							}
 						}
 						instance = new RemoteWebDriver(new URL(remoteWebDriver), dc);
 					} catch (Exception e) {
@@ -294,7 +259,7 @@ public class SeleniumFetcher {
 						coreData.add(l);
 					}
 					String json = Crawlers.GSON.toJson(structData);
-					fetcherClient.getMap(Crawlers.PREFIX_EXTRACT_DATA + task.getExtractor()).put(search.getUrl(), json);
+					fetcherClient.getMap(Crawlers.PREFIX_EXTRACT_DATA + task.getExtractor() + task.getStoryName()).put(search.getUrl(), json);
 		    		logger.info("Success to extract for url={}, push into {}", search.getUrl(), Crawlers.PREFIX_EXTRACT_DATA);
 				} catch (Exception e) {
 					fetcherClient.getQueue(Crawlers.EMULATOR_BACKLOG).add(taskData);
@@ -302,8 +267,11 @@ public class SeleniumFetcher {
 				} finally {
 					try {
 						instance.quit();
+						proxyServer.close();
+						proxyServerExecutor.shutdownNow();
 					} catch (Exception ex) {
 						// Ignore
+						logger.info("Erro when finally emulator.", ex);
 					}
 				}
 			}

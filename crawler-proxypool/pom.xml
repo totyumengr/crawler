@@ -3,10 +3,10 @@
 	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 
-    <artifactId>crawler-emulator</artifactId>
+    <artifactId>crawler-proxypool</artifactId>
 	<packaging>jar</packaging>
-	<version>1.0.1</version>
-	<name>crawler-emulator</name>
+	<version>1.0.0</version>
+	<name>crawler-proxypool</name>
 	<parent>
 		<groupId>org.springframework.boot</groupId>
 		<artifactId>spring-boot-starter-parent</artifactId>
@@ -23,28 +23,17 @@
 	<dependencies>
 		
 		<dependency>
-		    <groupId>com.github.monkeywie</groupId>
-		    <artifactId>proxyee</artifactId>
-		    <version>1.2.0</version>
-		    <exclusions>
-		    	<exclusion>
-		    		<groupId>io.netty</groupId>
-		    		<artifactId>netty-common</artifactId>
-		    	</exclusion>
-		    </exclusions>
-		</dependency>
-		
-		<dependency>
 			<groupId>github.totyumengr.crawler</groupId>
 			<artifactId>crawler-common</artifactId>
 			<version>1.0.1</version>
 		</dependency>
 		
 		<dependency>
-		    <groupId>org.seleniumhq.selenium</groupId>
-		    <artifactId>selenium-java</artifactId>
+		    <groupId>commons-io</groupId>
+		    <artifactId>commons-io</artifactId>
+		    <version>2.6</version>
 		</dependency>
-		
+
 		<dependency>
 			<groupId>org.redisson</groupId>
 			<artifactId>redisson-spring-boot-starter</artifactId>
@@ -68,13 +57,20 @@
 		
 		<dependency>
 			<groupId>cn.wanghaomiao</groupId>
-		    <artifactId>JsoupXpath</artifactId>
-		    <version>2.3.2</version>
+			<artifactId>SeimiCrawler</artifactId>
+			<version>2.1.2-mengran</version>
+			<exclusions>
+				<exclusion>
+					<groupId>de.ruedigermoeller</groupId>
+					<artifactId>fst</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 		
 		<dependency>
-		    <groupId>com.google.code.gson</groupId>
-		    <artifactId>gson</artifactId>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-test</artifactId>
+			<scope>test</scope>
 		</dependency>
 	</dependencies>
 

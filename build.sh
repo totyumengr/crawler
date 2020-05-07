@@ -18,6 +18,30 @@ echo "1.maven-build"
 cd $seimi_project
 mvn clean install -DskipTests=true
 
+proxypool_project=${current_dir}/crawler-proxypool
+echo "----------------"
+echo $proxypool_project
+echo "----------------"
+echo "1.maven-build"
+cd $proxypool_project
+mvn clean package
+echo "2.docker-clear"
+docker container ls -a | grep totyumengr/crawler-proxypool | awk '{print $1}' | uniq | xargs -I {} docker rm --force {}
+docker images | grep totyumengr/crawler-proxypool | awk '{print $3}' | uniq | xargs -I {} docker rmi --force {}
+jar=`find ./target -type f -regex '.*.jar'`
+jar=${jar##*-}
+jar=${jar%.*}
+jar_version=$jar
+echo "3.docker-build"
+docker build -t totyumengr/crawler-proxypool:v${jar_version} .
+echo "4.docker-run"
+authName=$1
+authPassword=$2
+authKey=$3
+docker run -e JAVA_OPTS="-server -Dspring.redis.host=host.docker.internal -Dbacklog.proxy.authName=$authName -Dbacklog.proxy.authPassword=$authPassword -Dfetcher.ippool.url=http://jdmksp.v4.dailiyun.com/query.txt?key=$authKey&word=&count=50&rand=true&detail=false" \
+    -d --name docker-crawler-proxypool totyumengr/crawler-proxypool:v${jar_version}
+echo "5.done"
+
 emulator_project=${current_dir}/crawler-emulator
 echo "----------------"
 echo $emulator_project
@@ -59,7 +83,7 @@ echo "4.docker-run"
 authName=$1
 authPassword=$2
 authKey=$3
-docker run -e JAVA_OPTS="-server -Dspring.redis.host=host.docker.internal -Dbacklog.proxy.authName=$authName -Dbacklog.proxy.authPassword=$authPassword -Dfetcher.ippool.url=http://jdmksp.v4.dailiyun.com/query.txt?key=$authKey&word=&count=50&rand=true&detail=false" \
+docker run -e JAVA_OPTS="-server -Dspring.redis.host=host.docker.internal -Dbacklog.proxy.authName=$authName -Dbacklog.proxy.authPassword=$authPassword" \
     -d --name docker-crawler-fetcher totyumengr/crawler-fetcher:v${jar_version}
 echo "5.done"
 

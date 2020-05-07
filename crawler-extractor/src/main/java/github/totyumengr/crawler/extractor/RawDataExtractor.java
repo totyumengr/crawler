@@ -35,9 +35,9 @@ public class RawDataExtractor {
 	@Autowired
 	private ApplicationContext context;
 	
-	private String determineExtractor(String url) {
+	private String determineExtractor(String storyName, String url) {
 		
-		Object extractor = rawDataClient.getMap(Crawlers.EXTRACTOR).get(url);
+		Object extractor = rawDataClient.getMap(Crawlers.EXTRACTOR + storyName).get(url);
 		return extractor == null ? null : extractor.toString();
 	}
 	
@@ -71,9 +71,12 @@ public class RawDataExtractor {
 						logger.info("Ignore illegal element={}", res.keySet());
 						return;
 					}
+					
+					String storyName = res.get(Crawlers.STORY_NAME);
+					
 					// 确定解析器，如果没有使用默认的。
 					String url = new String(ByteBufUtil.decodeHexDump(res.get(Crawlers.URL)), "UTF-8");
-					String extractorType = determineExtractor(url);
+					String extractorType = determineExtractor(storyName, url);
 					logger.info("Use {} to extractor content of url={}", extractorType, url);
 					
 					// 处理REPOST
@@ -90,7 +93,7 @@ public class RawDataExtractor {
 					logger.info("extract from...");
 					logger.info("{}", content);
 					
-					boolean isSuccess = extractor.extract(url, JXDocument.create(content), extractorType, repostUrl, repostCookie);
+					boolean isSuccess = extractor.extract(storyName, url, JXDocument.create(content), extractorType, repostUrl, repostCookie);
 					logger.info("Is Done={}...extract content of url={}", isSuccess, url);
 				} catch (NoSuchBeanDefinitionException nsbde) {
 					rawDataClient.getQueue(Crawlers.RAWDATA).offer(rawData);

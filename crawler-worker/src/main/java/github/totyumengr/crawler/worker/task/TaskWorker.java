@@ -1,5 +1,7 @@
 package github.totyumengr.crawler.worker.task;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.CountDownLatch;
@@ -62,7 +64,7 @@ public class TaskWorker {
 		public void run() {
 			
 			// 检查抽取完成的结果
-			Object structData = structDataClient.getMap(Crawlers.PREFIX_EXTRACT_DATA + task.getExtractor()).get(nextPageUrl);
+			Object structData = structDataClient.getMap(Crawlers.PREFIX_EXTRACT_DATA + task.getExtractor() + task.getStoryName()).get(nextPageUrl);
 			if (structData != null) {
 				// 获取下一页链接
 				Map<String, Object> extractData = Crawlers.GSON.fromJson(structData.toString(),
@@ -95,7 +97,7 @@ public class TaskWorker {
 				if (nextPageUrl != null && pagingCnt >= 1) {
 					this.nextPageUrl = nextPageUrl;
 					// 第三步：记录关联
-					structDataClient.getList(Crawlers.PREFIX_TASK_RELATED_URLS + task.getFromUrl()).add(nextPageUrl);
+					structDataClient.getList(Crawlers.PREFIX_TASK_RELATED_URLS + task.getFromUrl() + task.getStoryName()).add(nextPageUrl);
 
 					// 提交任务
 					doSubmitTask(nextPageUrl, task);
@@ -125,7 +127,7 @@ public class TaskWorker {
 		public void run() {
 			
 			// 检查抽取完成的结果
-			Object structData = structDataClient.getMap(Crawlers.PREFIX_EXTRACT_DATA + task.getExtractor()).get(task.getFromUrl());
+			Object structData = structDataClient.getMap(Crawlers.PREFIX_EXTRACT_DATA + task.getExtractor() + task.getStoryName()).get(task.getFromUrl());
 			if (structData != null) {
 				countDown.countDown();
 			}
@@ -135,20 +137,23 @@ public class TaskWorker {
 	private void doSubmitTask(String url, Task task) {
 		
 		// 第一步：设置Extractor类型
-		structDataClient.getMap(Crawlers.EXTRACTOR).put(url, task.getExtractor());
+		structDataClient.getMap(Crawlers.EXTRACTOR + task.getStoryName()).put(url, task.getExtractor());
 		
 		// 第二步：设置提取器的规则
 		for (Entry<String, String> entry : task.getExtractRules().entrySet()) {
-			structDataClient.getMap(entry.getKey()).put(url, entry.getValue());
+			structDataClient.getMap(entry.getKey() + task.getStoryName()).put(url, entry.getValue());
 		}
 		
 		// 增加Cookie设置
 		if (task.getCookies() != null) {
-			structDataClient.getMap(Crawlers.COOKIES).put(url, Crawlers.GSON.toJson(task.getCookies()));
+			structDataClient.getMap(Crawlers.COOKIES + task.getStoryName()).put(url, Crawlers.GSON.toJson(task.getCookies()));
 		}
 		
 		// 第四步：Launch
-		structDataClient.getQueue(Crawlers.BACKLOG).add(url);
+		List<String> backlog = new ArrayList<String>(2);
+		backlog.add(task.getStoryName());
+		backlog.add(url);
+		structDataClient.getQueue(Crawlers.BACKLOG).add(Crawlers.GSON.toJson(backlog));
 		logger.info("Launch task fromUrl={}", url);
 		
 		// 记录Trace
@@ -158,7 +163,7 @@ public class TaskWorker {
 		}
 	}
 	
-	public Task submitTask(String storyName, Task task) throws Exception {
+	public Task submitTask(Task task) throws Exception {
 		
 		CountDownLatch countDown = new CountDownLatch(1);
 		
@@ -220,14 +225,14 @@ public class TaskWorker {
 		
 		if (task.getEmulator() != null) {
 			// 如果是浏览器执行的任务
-			return submitEmulatorTask(storyName, task);
+			return submitEmulatorTask(task);
 		} else {
 			// HTTP-Jar执行的任务
-			return submitTask(storyName, task);
+			return submitTask(task);
 		}
 	}
 	
-	public Task submitEmulatorTask(String storyName, Task task) throws Exception {
+	public Task submitEmulatorTask(Task task) throws Exception {
 		
 		CountDownLatch countDown = new CountDownLatch(1);
 		

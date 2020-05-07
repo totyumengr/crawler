@@ -15,10 +15,10 @@ import github.totyumengr.crawler.extractor.Extractor;
 public class ContentExtractor extends AbstractExtractor implements Extractor {
 	
 	@Override
-	protected Map<String, Object> doExtract(String url, JXDocument document, List<List<String>> coreData) {
+	protected Map<String, Object> doExtract(String storyName, String url, JXDocument document, List<List<String>> coreData) {
 		
 		// 开始解析结果列表
-        List<String> elements = extractContent(url, document);
+        List<String> elements = extractContent(storyName, url, document);
         coreData.add(elements);
         
         // 没有额外的解析数据
@@ -31,10 +31,10 @@ public class ContentExtractor extends AbstractExtractor implements Extractor {
 	 * @param document 页面文档
 	 * @return 结构化提取的内容
 	 */
-	protected List<String> extractContent(String url, JXDocument document) {
+	protected List<String> extractContent(String storyName, String url, JXDocument document) {
 		
 		// 根据配置规则进行元素级内容的提取，并且进行结构化存储。
-		Object blockXpath = extractDataClient.getMap(Crawlers.XPATH_CONTENT).get(url);
+		Object blockXpath = extractDataClient.getMap(Crawlers.XPATH_CONTENT + storyName).get(url);
 		if (blockXpath == null) {
 			logger.info("{} Return because can not found {} of url={}", Crawlers.PLEASE_SET_EXTRACT_XPATH, Crawlers.XPATH_CONTENT, url);
 			List<String> html = new ArrayList<String>(1);

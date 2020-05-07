@@ -133,12 +133,12 @@ public class StoryWorker {
 								submittedTask.setFromUrl(submittedTask.getRepostUrl());
 								submittedTask.setRepostUrl(null);
 								logger.info("Repost task={}", submittedTask.getFromUrl());
-								submittedTask = taskWorker.submitTask(story.getName(), submittedTask);
+								submittedTask = taskWorker.submitTask(submittedTask);
 							}
 						}
 						if (task.get(Crawlers.TASK_PARAMS).equals(Crawlers.TASK_PARAMS_PIPELINE)) {
 							// 从上下文中获取参数，并提交
-							Object pipeline = storyDataClient.getMap(Crawlers.STORY_PIPELINE).get(url);
+							Object pipeline = storyDataClient.getMap(Crawlers.STORY_PIPELINE + story.getName()).get(url);
 							if (pipeline == null) {
 								logger.error("Can not found data from pipeline url={}", url);
 							} else {
@@ -202,9 +202,6 @@ public class StoryWorker {
 			logger.info("Do not clean story={} because cannot found trace info.", story.getName());
 			return;
 		}
-		// 设置日志过期时间
-		storyDataClient.getList(Crawlers.PREFIX_STORY_TRACE + story.getName())
-			.expire(storyTTL.longValue(), TimeUnit.DAYS);
 		
 		File storyFolder = new File(storyExportDir, story.getName());
 		try {
@@ -231,29 +228,12 @@ public class StoryWorker {
 		} catch (IOException e) {
 			logger.error("Error when try to logging story={}", story.getName());
 		} finally {
-			expireIntermediateData();
-		}
-	}
-	
-	private void expireIntermediateData() {
-		
-		try {
-			storyDataClient.getMap(Crawlers.XPATH_LIST_ELEMENTS).expire(storyTTL.longValue(), TimeUnit.DAYS);
-			storyDataClient.getMap(Crawlers.XPATH_RECORD_ELEMENTS).expire(storyTTL.longValue(), TimeUnit.DAYS);
-			storyDataClient.getMap(Crawlers.XPATH_PAGINGBAR_ELEMENTS).expire(storyTTL.longValue(), TimeUnit.DAYS);
-			storyDataClient.getMap(Crawlers.XPATH_PAGINGBAR_NEXTURL_ELEMENTS).expire(storyTTL.longValue(), TimeUnit.DAYS);
-			
-			storyDataClient.getMap(Crawlers.XPATH_CONTENT).expire(storyTTL.longValue(), TimeUnit.DAYS);
-			
-			storyDataClient.getMap(Crawlers.EXTRACTOR).expire(storyTTL.longValue(), TimeUnit.DAYS);
-			
-			storyDataClient.getMap(Crawlers.COOKIES).expire(storyTTL.longValue(), TimeUnit.DAYS);
-			
-			storyDataClient.getMap(Crawlers.STORY_PIPELINE).expire(storyTTL.longValue(), TimeUnit.DAYS);
-			
-			logger.info("Done... Expire intermidiate data");
-		} catch (Exception e) {
-			logger.error("Error when try to Expire intermidiate data");
+			try {
+				storyDataClient.getList(Crawlers.PREFIX_STORY_TRACE + story.getName()).clear();
+				logger.info("Done... Expire intermidiate data");
+			} catch (Exception e) {
+				logger.error("Error when try to Expire intermidiate data", e);
+			}
 		}
 	}
 	
@@ -263,8 +243,19 @@ public class StoryWorker {
 			// TODO: 当前先简单写吧。
 			storyDataClient.getMap(Crawlers.BACKLOG_REPUSH).fastRemoveAsync(task.getLogUrl());
 			
-			storyDataClient.getMap(Crawlers.PREFIX_EXTRACT_DATA + task.getExtractor()).expire(storyTTL.longValue(), TimeUnit.DAYS);
-			storyDataClient.getList(Crawlers.PREFIX_TASK_RELATED_URLS + task.getLogUrl()).expire(storyTTL.longValue(), TimeUnit.DAYS);
+			storyDataClient.getMap(Crawlers.XPATH_LIST_ELEMENTS + task.getStoryName()).fastRemoveAsync(task.getLogUrl());
+			storyDataClient.getMap(Crawlers.XPATH_RECORD_ELEMENTS + task.getStoryName()).fastRemoveAsync(task.getLogUrl());
+			storyDataClient.getMap(Crawlers.XPATH_PAGINGBAR_ELEMENTS + task.getStoryName()).fastRemoveAsync(task.getLogUrl());
+			storyDataClient.getMap(Crawlers.XPATH_PAGINGBAR_NEXTURL_ELEMENTS + task.getStoryName()).fastRemoveAsync(task.getLogUrl());
+			
+			storyDataClient.getMap(Crawlers.XPATH_CONTENT + task.getStoryName()).fastRemoveAsync(task.getLogUrl());
+			
+			storyDataClient.getMap(Crawlers.COOKIES + task.getStoryName()).fastRemoveAsync(task.getLogUrl());
+			storyDataClient.getMap(Crawlers.STORY_PIPELINE + task.getStoryName()).fastRemoveAsync(task.getLogUrl());
+			storyDataClient.getMap(Crawlers.EXTRACTOR + task.getStoryName()).fastRemoveAsync(task.getLogUrl());
+			storyDataClient.getMap(Crawlers.PREFIX_EXTRACT_DATA + task.getExtractor()  + task.getStoryName()).fastRemoveAsync(task.getLogUrl());
+			
+			storyDataClient.getList(Crawlers.PREFIX_TASK_RELATED_URLS + task.getLogUrl() + task.getStoryName()).clear();
 			logger.info("Done... Clean intermidiate data url={}", task.getLogUrl());
 		} catch (Exception e) {
 			logger.error("Error when try to clean intermidiate data url={}", task.getLogUrl());

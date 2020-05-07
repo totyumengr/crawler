@@ -25,21 +25,21 @@ public final class Crawlers {
 	public static final String RAWDATA = "crawler.rawdata";
 
 	// Map
-	public static final String BACKLOG_REPUSH = "crawler.backlog.repush";
 	public static final String PROXYPOOL = "crawler.proxypool";
+	public static final String BACKLOG_REPUSH = "crawler.backlog.repush";
 	
-	public static final String EXTRACTOR = "crawler.extractor";
+	public static final String EXTRACTOR = "crawler.extractor.";
 	public static final String PREFIX_EXTRACT_DATA = "crawler.structdata.";
-	public static final String COOKIES = "fetcher.cookies";
+	public static final String COOKIES = "fetcher.cookies.";
 	
-	public static final String XPATH_LIST_ELEMENTS = "extractor.paging.list";
-	public static final String XPATH_RECORD_ELEMENTS = "extractor.paging.list.record";
-	public static final String XPATH_PAGINGBAR_ELEMENTS = "extractor.paging.bar";
-	public static final String XPATH_PAGINGBAR_NEXTURL_ELEMENTS = "extractor.paging.bar.nexturl";
-	public static final String XPATH_CONTENT = "extractor.content";
+	public static final String XPATH_LIST_ELEMENTS = "extractor.paging.list.";
+	public static final String XPATH_RECORD_ELEMENTS = "extractor.paging.list.record.";
+	public static final String XPATH_PAGINGBAR_ELEMENTS = "extractor.paging.bar.";
+	public static final String XPATH_PAGINGBAR_NEXTURL_ELEMENTS = "extractor.paging.bar.nexturl.";
+	public static final String XPATH_CONTENT = "extractor.content.";
 	
 	public static final String PREFIX_TASK_RELATED_URLS = "worker.task.relatedurls.";
-	public static final String STORY_PIPELINE = "worker.pipeline";
+	public static final String STORY_PIPELINE = "worker.pipeline.";
 	
 	// Trace
 	public static final String PREFIX_STORY_TRACE = "worker.trace.";
@@ -47,6 +47,7 @@ public final class Crawlers {
 	
 	public static final String URL = "url";
 	public static final String CONTENT = "content";
+	public static final String STORY_NAME = "storyName";	
 	public static final String REPOST = "repost";
 	public static final String REPOST_COOKIE = "repost.cookie";
 	public static final String SEARCH_KEYWORD = "_kw_";

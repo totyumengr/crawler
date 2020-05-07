@@ -21,10 +21,10 @@ public abstract class AbstractExtractor implements Extractor {
 	@Autowired
 	protected RedissonClient extractDataClient;
 	
-	protected abstract Map<String, Object> doExtract(String url, JXDocument document, List<List<String>> coreData);
+	protected abstract Map<String, Object> doExtract(String storyName, String url, JXDocument document, List<List<String>> coreData);
 
 	@Override
-	public boolean extract(String url, JXDocument document, String extractor, String repostUrl, String repostCookie) {
+	public boolean extract(String storyName, String url, JXDocument document, String extractor, String repostUrl, String repostCookie) {
 		
 		try {
 			Map<String, Object> structData = new HashMap<String, Object>();
@@ -36,14 +36,14 @@ public abstract class AbstractExtractor implements Extractor {
 			}
 			
 			// 执行模板方法
-			Map<String, Object> extraData = doExtract(url, document, coreData);
+			Map<String, Object> extraData = doExtract(storyName, url, document, coreData);
 			if (extraData != null) {
 				structData.putAll(extraData);
 			}
 			
     		// 解析完成，转换为JSON进行存储
     		String json = Crawlers.GSON.toJson(structData);
-    		extractDataClient.getMap(Crawlers.PREFIX_EXTRACT_DATA + extractor).put(url, json);
+    		extractDataClient.getMap(Crawlers.PREFIX_EXTRACT_DATA + extractor + storyName).put(url, json);
     		logger.info("Success to extract for url={}, push into {}", url, Crawlers.PREFIX_EXTRACT_DATA);
         } catch (Exception e) {
             logger.error("Can not extract any result.", e);

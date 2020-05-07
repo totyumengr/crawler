@@ -12,10 +12,11 @@ public interface Extractor {
 	
 	/**
 	 * 
+	 * @param storyName 抓取源的批次
 	 * @param url 抓取源
 	 * @param document 抓取到的内容文档对象
 	 * @param 解析结果
 	 * @return 是否成功提取到结果
 	 */
-	boolean extract(String url, JXDocument document, String extractorType, String repostUrl, String repostCookie);
+	boolean extract(String storyName, String url, JXDocument document, String extractorType, String repostUrl, String repostCookie);
 }
