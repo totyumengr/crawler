@@ -29,6 +29,7 @@ public final class Crawlers {
 	public static final String BACKLOG_REPUSH = "crawler.backlog.repush.";
 	
 	public static final String EXTRACTOR = "crawler.extractor.";
+	public static final String EXTRACTOR_CONTENT_ANTI_ALERT = "crawler.extractor.anti.alert.";
 	public static final String PREFIX_EXTRACT_DATA = "crawler.structdata.";
 	public static final String COOKIES = "fetcher.cookies.";
 	
@@ -37,6 +38,7 @@ public final class Crawlers {
 	public static final String XPATH_PAGINGBAR_ELEMENTS = "extractor.paging.bar.";
 	public static final String XPATH_PAGINGBAR_NEXTURL_ELEMENTS = "extractor.paging.bar.nexturl.";
 	public static final String XPATH_CONTENT = "extractor.content.";
+	public static final String XPATH_CONTENT_ANTI = "extractor.content.anti.";
 	
 	public static final String PREFIX_TASK_RELATED_URLS = "worker.task.relatedurls.";
 	public static final String STORY_PIPELINE = "worker.pipeline.";
@@ -175,7 +177,15 @@ public final class Crawlers {
 		private String storyName;
 		private String logUrl;
 		private String repostUrl;
+		// 是否被反抓取了
+		private boolean anti;
 		
+		public boolean isAnti() {
+			return anti;
+		}
+		public void setAnti(boolean anti) {
+			this.anti = anti;
+		}
 		public String getRepostUrl() {
 			return repostUrl;
 		}

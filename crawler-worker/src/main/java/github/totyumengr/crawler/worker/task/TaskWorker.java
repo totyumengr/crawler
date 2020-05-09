@@ -41,8 +41,12 @@ public class TaskWorker {
 	
 	@Value("${worker.initialDelay}")
 	private int initialDelay;
+	
 	@Value("${worker.period}")
 	private int period;
+	
+	@Value("${worker.runner.pause}")
+	private int pause;
 	
 	class NextPage implements Runnable {
 		
@@ -201,6 +205,12 @@ public class TaskWorker {
 			}
 		}
 		
+		// 判断是否被反抓取
+		Object alert = structDataClient.getMap(Crawlers.EXTRACTOR_CONTENT_ANTI_ALERT + task.getStoryName()).get(task.getFromUrl());
+		if (alert != null) {
+			task.setAnti(true);
+		}
+		
 		nextPageSE.shutdown();
 		currentPagePageSE.shutdown();
 		
@@ -228,7 +238,23 @@ public class TaskWorker {
 			return submitEmulatorTask(task);
 		} else {
 			// HTTP-Jar执行的任务
-			return submitTask(task);
+			Task t = submitTask(task);
+			pause(t);
+			return t;
+		}
+	}
+	
+	private void pause(Task task) {
+		
+		// 如果任务被Anti了，那就暂停。
+		if (task.isAnti()) {
+			logger.info("PAUSE: task have been anti-crawler... {}", task);
+			try {
+				Thread.sleep(pause * 60 * 1000);
+			} catch (Exception e) {
+				// Ignore
+			}
+			logger.info("RESUME: try next task...");
 		}
 	}
 	

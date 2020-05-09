@@ -44,6 +44,7 @@ public class ContentExtractor extends AbstractExtractor implements Extractor {
 		
 		List<String> struct = new ArrayList<String>();
 		String[] xpaths = blockXpath.toString().split("\\|");
+		boolean haveData = false;
 		for (String xpath : xpaths) {
 			// By 元素提取
 			List<JXNode> nodes = document.selN(xpath);
@@ -51,8 +52,23 @@ public class ContentExtractor extends AbstractExtractor implements Extractor {
 				for (JXNode node : nodes) {
 					struct.add(node.toString());
 				}
+				haveData = true;
 			}
 		}
+		
+		// 没有解析出数据的情况
+		if (!haveData) {
+			Object antiXpath = extractDataClient.getMap(Crawlers.XPATH_CONTENT_ANTI + storyName).get(url);
+			if (antiXpath != null) {
+				JXNode node = document.selNOne(antiXpath.toString());
+				if (node != null) {
+					String antiContent = node.toString();
+					extractDataClient.getMap(Crawlers.EXTRACTOR_CONTENT_ANTI_ALERT + storyName).put(url, antiContent);
+					logger.info("ALERT: {}, {}", url, antiContent);
+				}
+			}
+		}
+		
 		logger.info("Content={} return of url={}", struct, url);
 		
 		return struct;
