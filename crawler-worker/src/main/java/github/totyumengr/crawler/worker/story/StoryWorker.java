@@ -219,8 +219,8 @@ public class StoryWorker {
 						new TypeToken<Task>() {}.getType());
 				c.add(task.getLogUrl());
 				
-				// 清除中间数据
-				cleanIntermediateData(task);
+				// 清除中间数据（当前为了清理翻页相关数据）
+				taskWorker.cleanIntermediateData(task);
 			}
 			FileUtils.writeLines(storyLogFile, c, true);
 			logger.info("Story={} logging is done...", story.getName());
@@ -234,33 +234,6 @@ public class StoryWorker {
 			} catch (Exception e) {
 				logger.error("Error when try to Expire intermidiate data", e);
 			}
-		}
-	}
-	
-	private void cleanIntermediateData(Task task) {
-		
-		try {
-			// TODO: 当前先简单写吧。
-			storyDataClient.getMap(Crawlers.BACKLOG_REPUSH + task.getStoryName()).fastRemoveAsync(task.getLogUrl());
-			
-			storyDataClient.getMap(Crawlers.XPATH_LIST_ELEMENTS + task.getStoryName()).fastRemoveAsync(task.getLogUrl());
-			storyDataClient.getMap(Crawlers.XPATH_RECORD_ELEMENTS + task.getStoryName()).fastRemoveAsync(task.getLogUrl());
-			storyDataClient.getMap(Crawlers.XPATH_PAGINGBAR_ELEMENTS + task.getStoryName()).fastRemoveAsync(task.getLogUrl());
-			storyDataClient.getMap(Crawlers.XPATH_PAGINGBAR_NEXTURL_ELEMENTS + task.getStoryName()).fastRemoveAsync(task.getLogUrl());
-			
-			storyDataClient.getMap(Crawlers.XPATH_CONTENT + task.getStoryName()).fastRemoveAsync(task.getLogUrl());
-			storyDataClient.getMap(Crawlers.XPATH_CONTENT_ANTI + task.getStoryName()).fastRemoveAsync(task.getLogUrl());
-			
-			storyDataClient.getMap(Crawlers.COOKIES + task.getStoryName()).fastRemoveAsync(task.getLogUrl());
-			storyDataClient.getMap(Crawlers.STORY_PIPELINE + task.getStoryName()).fastRemoveAsync(task.getLogUrl());
-			storyDataClient.getMap(Crawlers.EXTRACTOR + task.getStoryName()).fastRemoveAsync(task.getLogUrl());
-			storyDataClient.getMap(Crawlers.PREFIX_EXTRACT_DATA + task.getExtractor()  + task.getStoryName()).fastRemoveAsync(task.getLogUrl());
-			storyDataClient.getMap(Crawlers.EXTRACTOR_CONTENT_ANTI_ALERT + task.getStoryName()).fastRemoveAsync(task.getLogUrl());
-			
-			storyDataClient.getList(Crawlers.PREFIX_TASK_RELATED_URLS + task.getLogUrl() + task.getStoryName()).clear();
-			logger.info("Done... Clean intermidiate data url={}", task.getLogUrl());
-		} catch (Exception e) {
-			logger.error("Error when try to clean intermidiate data url={}", task.getLogUrl());
 		}
 	}
 }

@@ -6,7 +6,6 @@ import java.util.List;
 import java.util.Map;
 
 import org.redisson.api.RedissonClient;
-import org.seimicrawler.xpath.JXDocument;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,13 +20,13 @@ public abstract class AbstractExtractor implements Extractor {
 	@Autowired
 	protected RedissonClient extractDataClient;
 	
-	protected abstract Map<String, Object> doExtract(String storyName, String url, JXDocument document, List<List<String>> coreData);
+	protected abstract Map<String, Object> doExtract(String storyName, String url, String html, List<List<String>> coreData);
 
 	@Override
-	public boolean extract(String storyName, String url, JXDocument document, String extractor, String repostUrl, String repostCookie) {
+	public boolean extract(String storyName, String url, String html, String extractor, String repostUrl, String repostCookie) {
 		
+		Map<String, Object> structData = new HashMap<String, Object>();
 		try {
-			Map<String, Object> structData = new HashMap<String, Object>();
 			List<List<String>> coreData = new ArrayList<List<String>>();
 			structData.put(Crawlers.EXTRACT_DATA, coreData);
 			if (repostUrl != null) {
@@ -36,18 +35,18 @@ public abstract class AbstractExtractor implements Extractor {
 			}
 			
 			// 执行模板方法
-			Map<String, Object> extraData = doExtract(storyName, url, document, coreData);
+			Map<String, Object> extraData = doExtract(storyName, url, html, coreData);
 			if (extraData != null) {
 				structData.putAll(extraData);
 			}
-			
-    		// 解析完成，转换为JSON进行存储
-    		String json = Crawlers.GSON.toJson(structData);
-    		extractDataClient.getMap(Crawlers.PREFIX_EXTRACT_DATA + extractor + storyName).put(url, json);
-    		logger.info("Success to extract for url={}, push into {}", url, Crawlers.PREFIX_EXTRACT_DATA);
         } catch (Exception e) {
             logger.error("Can not extract any result.", e);
             return false;
+        } finally {
+        	// 解析完成，转换为JSON进行存储
+    		String json = Crawlers.GSON.toJson(structData);
+    		extractDataClient.getMap(Crawlers.PREFIX_EXTRACT_DATA + extractor + storyName).put(url, json);
+    		logger.info("Success to extract for url={}, push into {}", url, Crawlers.PREFIX_EXTRACT_DATA);
         }
 		
 		return true;

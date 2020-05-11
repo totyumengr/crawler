@@ -65,5 +65,11 @@ public class NextPageTest {
 	public void testDocument() {
 		JXDocument.create("<html><head>NO_CONTENT</head><body>NO_CONTENT</body></html>");
 	}
+	
+	@Test
+	public void testAnti() {
+		
+		JXDocument.create("检测到有异常请求从你的 IP 发出，请 <a href=\"https://accounts.douban.com/passport/login?redir=https%3A%2F%2Fbook.douban.com%2Fsubject%2F25850538%2F\">登录</a> 使用豆瓣。");
+	}
 
 }

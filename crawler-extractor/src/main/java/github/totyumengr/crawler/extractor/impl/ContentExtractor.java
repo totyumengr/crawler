@@ -15,10 +15,11 @@ import github.totyumengr.crawler.extractor.Extractor;
 public class ContentExtractor extends AbstractExtractor implements Extractor {
 	
 	@Override
-	protected Map<String, Object> doExtract(String storyName, String url, JXDocument document, List<List<String>> coreData) {
+	protected Map<String, Object> doExtract(String storyName, String url, String html, List<List<String>> coreData) {
 		
+		JXDocument document = JXDocument.create(html);
 		// 开始解析结果列表
-        List<String> elements = extractContent(storyName, url, document);
+        List<String> elements = extractContent(storyName, url, document, html);
         coreData.add(elements);
         
         // 没有额外的解析数据
@@ -31,15 +32,15 @@ public class ContentExtractor extends AbstractExtractor implements Extractor {
 	 * @param document 页面文档
 	 * @return 结构化提取的内容
 	 */
-	protected List<String> extractContent(String storyName, String url, JXDocument document) {
+	protected List<String> extractContent(String storyName, String url, JXDocument document, String html) {
 		
 		// 根据配置规则进行元素级内容的提取，并且进行结构化存储。
 		Object blockXpath = extractDataClient.getMap(Crawlers.XPATH_CONTENT + storyName).get(url);
 		if (blockXpath == null) {
 			logger.info("{} Return because can not found {} of url={}", Crawlers.PLEASE_SET_EXTRACT_XPATH, Crawlers.XPATH_CONTENT, url);
-			List<String> html = new ArrayList<String>(1);
-			html.add(Crawlers.PLEASE_SET_EXTRACT_XPATH);
-			return html;
+			List<String> forReturn = new ArrayList<String>(1);
+			forReturn.add(Crawlers.PLEASE_SET_EXTRACT_XPATH);
+			return forReturn;
 		}
 		
 		List<String> struct = new ArrayList<String>();
@@ -60,16 +61,20 @@ public class ContentExtractor extends AbstractExtractor implements Extractor {
 		if (!haveData) {
 			Object antiXpath = extractDataClient.getMap(Crawlers.XPATH_CONTENT_ANTI + storyName).get(url);
 			if (antiXpath != null) {
-				JXNode node = document.selNOne(antiXpath.toString());
-				if (node != null) {
-					String antiContent = node.toString();
-					extractDataClient.getMap(Crawlers.EXTRACTOR_CONTENT_ANTI_ALERT + storyName).put(url, antiContent);
-					logger.info("ALERT: {}, {}", url, antiContent);
+				String[] antiXpaths = antiXpath.toString().split("\\|");
+				for (String xpath : antiXpaths) {
+					JXNode node = document.selNOne(xpath);
+					if (node != null || html.contains(xpath)) {
+						String antiContent = node.toString();
+						extractDataClient.getMap(Crawlers.EXTRACTOR_CONTENT_ANTI_ALERT + storyName).put(url, html);
+						logger.info("ALERT: {}, {} by {}", url, antiContent, antiXpath);
+						break;
+					}
 				}
 			}
 		}
 		
-		logger.info("Content={} return of url={}", struct, url);
+		logger.info("Contents found={} return of url={}", struct.size(), url);
 		
 		return struct;
 	}

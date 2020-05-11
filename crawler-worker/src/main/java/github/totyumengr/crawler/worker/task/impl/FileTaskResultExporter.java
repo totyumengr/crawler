@@ -27,6 +27,14 @@ public class FileTaskResultExporter extends AbstractResultExporter implements Re
 	
 	private static final String HEADER = "====================";
 	
+	protected void pushHeader(List<String> c, List<String> allUrl) {
+		
+		// 输出Header部分
+		c.add(HEADER);
+		c.addAll(allUrl);
+		c.add(HEADER);
+	}
+	
 	@Override
 	public void doExport(Task task, List<List<String>> extractData, List<String> allUrl) {
 		
@@ -37,10 +45,7 @@ public class FileTaskResultExporter extends AbstractResultExporter implements Re
 			}
 			
 			List<String> c = new ArrayList<String>();
-			// 输出Header部分
-			c.add(HEADER);
-			c.addAll(allUrl);
-			c.add(HEADER);
+			pushHeader(c, allUrl);
 			
 			boolean needWriteToFile = false;
 			// 输出Body部分
@@ -65,7 +70,7 @@ public class FileTaskResultExporter extends AbstractResultExporter implements Re
 				logger.info("Do not write to file because empty... {}", task.getFromUrl());
 			}
 		} catch (IOException e) {
-			logger.error("Error when try to export task result url={}", task.getFromUrl());
+			logger.error("Error when try to export task result url={}", task.getFromUrl(), e);
 		}
 	}
 	
@@ -74,13 +79,14 @@ public class FileTaskResultExporter extends AbstractResultExporter implements Re
 		return contents;
 	}
 	
-	private String convertUrlToFileName(String url) {
+	protected String convertUrlToFileName(String url) {
 		
 		try {
 			URL u = new URL(url);
 			String path = u.getPath().replace("/", "");
 			String query = (u.getQuery() == null ? "" : u.getQuery());
-			return path + (query != "" ? "-" + query : "");
+			String fileName = path + (query != "" ? "-" + query : "");
+			return fileName.length() > 100 ? fileName.substring(0, 100) : fileName;
 		} catch (MalformedURLException e) {
 			return UUID.randomUUID().toString();
 		}

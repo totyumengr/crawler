@@ -255,7 +255,7 @@ public class BackLogFetcher extends BaseSeimiCrawler {
 				fetcherClient.getQueue(Crawlers.BACKLOG).add(Crawlers.GSON.toJson(backlog));
 				logger.info("Return url={} to backlog because fail to fetch. {}", request.getUrl(), repushCount);
 			} else {
-				fetcherClient.getMap(Crawlers.BACKLOG_REPUSH).put(request.getUrl(), 0);
+				fetcherClient.getMap(Crawlers.BACKLOG_REPUSH + storyName).put(request.getUrl(), 0);
 				doResponse(storyName, request.getUrl(), EMPTY_COUNT);
 				logger.info("Give up Fail to fetch url={}", request.getUrl());
 			}

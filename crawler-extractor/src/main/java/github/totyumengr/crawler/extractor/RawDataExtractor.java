@@ -6,7 +6,6 @@ import java.util.concurrent.Executors;
 import javax.annotation.PostConstruct;
 
 import org.redisson.api.RedissonClient;
-import org.seimicrawler.xpath.JXDocument;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.NoSuchBeanDefinitionException;
@@ -90,13 +89,11 @@ public class RawDataExtractor {
 					Extractor extractor = context.getBean(extractorType, Extractor.class);
 					
 					String content = new String(ByteBufUtil.decodeHexDump(res.get(Crawlers.CONTENT)), "UTF-8");
-					logger.info("extract from...");
-					logger.info("{}", content);
+					logger.info("extract from content {}", content.length());
 					
-					boolean isSuccess = extractor.extract(storyName, url, JXDocument.create(content), extractorType, repostUrl, repostCookie);
+					boolean isSuccess = extractor.extract(storyName, url, content, extractorType, repostUrl, repostCookie);
 					logger.info("Is Done={}...extract content of url={}", isSuccess, url);
 				} catch (NoSuchBeanDefinitionException nsbde) {
-					rawDataClient.getQueue(Crawlers.RAWDATA).offer(rawData);
 					logger.error("UnSupport extractor type and put-back.", nsbde);
 				} catch (Exception e) {
 					logger.error("Extract error.", e);

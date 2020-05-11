@@ -269,6 +269,7 @@ public class SeleniumFetcher {
 						instance.quit();
 						proxyServer.close();
 						proxyServerExecutor.shutdownNow();
+						Thread.sleep(1000);
 					} catch (Exception ex) {
 						// Ignore
 						logger.info("Erro when finally emulator.", ex);

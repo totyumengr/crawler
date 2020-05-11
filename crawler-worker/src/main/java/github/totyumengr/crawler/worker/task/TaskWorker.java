@@ -45,8 +45,11 @@ public class TaskWorker {
 	@Value("${worker.period}")
 	private int period;
 	
-	@Value("${worker.runner.pause}")
+	@Value("${worker.runner.anti.pause}")
 	private int pause;
+	
+	@Value("${worker.runner.anti.retry}")
+	private int retry;
 	
 	class NextPage implements Runnable {
 		
@@ -225,26 +228,30 @@ public class TaskWorker {
 		}
 		
 		String taskJson = taskData.toString();
-		logger.info("Start task={}", taskJson);
-
-		// 获得任务配置
-		Task task = Crawlers.GSON.fromJson(taskJson, Task.class);
-		// 改变任务的fromUrl
-		task.setFromUrl(url);
-		task.setStoryName(storyName);
+		Task task;
+		do {
+			retry--;
+			logger.info("Start task={}, and have {} retry times.", taskJson, retry);
+			// 获得任务配置
+			task = Crawlers.GSON.fromJson(taskJson, Task.class);
+			// 改变任务的fromUrl
+			task.setFromUrl(url);
+			task.setStoryName(storyName);
+			
+			if (task.getEmulator() != null) {
+				// 如果是浏览器执行的任务
+				submitEmulatorTask(task);
+			} else {
+				// HTTP-Jar执行的任务
+				submitTask(task);
+				antiHandler(task);
+			}
+		} while (task.isAnti() && retry > 0);
 		
-		if (task.getEmulator() != null) {
-			// 如果是浏览器执行的任务
-			return submitEmulatorTask(task);
-		} else {
-			// HTTP-Jar执行的任务
-			Task t = submitTask(task);
-			pause(t);
-			return t;
-		}
+		return task;
 	}
 	
-	private void pause(Task task) {
+	private void antiHandler(Task task) {
 		
 		// 如果任务被Anti了，那就暂停。
 		if (task.isAnti()) {
@@ -255,6 +262,37 @@ public class TaskWorker {
 				// Ignore
 			}
 			logger.info("RESUME: try next task...");
+			
+			structDataClient.getMap(Crawlers.PREFIX_EXTRACT_DATA + task.getExtractor()  + task.getStoryName()).fastRemoveAsync(task.getLogUrl());
+			structDataClient.getMap(Crawlers.EXTRACTOR_CONTENT_ANTI_ALERT + task.getStoryName()).fastRemoveAsync(task.getLogUrl());
+		}
+	}
+	
+	public void cleanIntermediateData(Task task) {
+		
+		try {
+			structDataClient.getMap(Crawlers.PREFIX_EXTRACT_DATA + task.getExtractor()  + task.getStoryName()).fastRemoveAsync(task.getLogUrl());
+			structDataClient.getMap(Crawlers.EXTRACTOR_CONTENT_ANTI_ALERT + task.getStoryName()).fastRemoveAsync(task.getLogUrl());
+			
+			structDataClient.getMap(Crawlers.BACKLOG_REPUSH + task.getStoryName()).fastRemoveAsync(task.getLogUrl());
+			
+			structDataClient.getMap(Crawlers.XPATH_LIST_ELEMENTS + task.getStoryName()).fastRemoveAsync(task.getLogUrl());
+			structDataClient.getMap(Crawlers.XPATH_RECORD_ELEMENTS + task.getStoryName()).fastRemoveAsync(task.getLogUrl());
+			structDataClient.getMap(Crawlers.XPATH_PAGINGBAR_ELEMENTS + task.getStoryName()).fastRemoveAsync(task.getLogUrl());
+			structDataClient.getMap(Crawlers.XPATH_PAGINGBAR_NEXTURL_ELEMENTS + task.getStoryName()).fastRemoveAsync(task.getLogUrl());
+			
+			structDataClient.getMap(Crawlers.XPATH_CONTENT + task.getStoryName()).fastRemoveAsync(task.getLogUrl());
+			structDataClient.getMap(Crawlers.XPATH_CONTENT_ANTI + task.getStoryName()).fastRemoveAsync(task.getLogUrl());
+			
+			structDataClient.getMap(Crawlers.COOKIES + task.getStoryName()).fastRemoveAsync(task.getLogUrl());
+			structDataClient.getMap(Crawlers.EXTRACTOR + task.getStoryName()).fastRemoveAsync(task.getLogUrl());
+			
+			structDataClient.getList(Crawlers.PREFIX_TASK_RELATED_URLS + task.getLogUrl() + task.getStoryName()).clear();
+			
+			structDataClient.getMap(Crawlers.STORY_PIPELINE + task.getStoryName()).fastRemoveAsync(task.getLogUrl());
+			logger.info("Done... Clean intermidiate data url={}", task.getLogUrl());
+		} catch (Exception e) {
+			logger.error("Error when try to clean intermidiate data url={}", task.getLogUrl());
 		}
 	}
 	
@@ -267,7 +305,7 @@ public class TaskWorker {
 				initialDelay, period, TimeUnit.SECONDS);
 		
 		// 第一步：设置Extractor类型
-		structDataClient.getMap(Crawlers.EXTRACTOR).put(task.getFromUrl(), task.getExtractor());
+		structDataClient.getMap(Crawlers.EXTRACTOR + task.getStoryName()).put(task.getFromUrl(), task.getExtractor());
 		
 		// 第四步：Launch
 		structDataClient.getQueue(Crawlers.EMULATOR_BACKLOG).add(Crawlers.GSON.toJson(task));
