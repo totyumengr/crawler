@@ -138,7 +138,7 @@ jar_version=$jar
 echo "3.docker-build"
 docker build -t totyumengr/crawler-worker:v${jar_version} .
 echo "4.docker-run"
-docker run -e JAVA_OPTS="-server $redis_node_java_opts -Dworker.period=500 -Dexporter.story.dir=/usr/local/crawler-data" \
+docker run -e JAVA_OPTS="-server $redis_node_java_opts -Dworker.period=5 -Dworker.task.period=300 -Dexporter.story.dir=/usr/local/crawler-data" \
     -v /Users/mengran7/Downloads/03Data/crawler-data:/usr/local/crawler-data -d \
     --name docker-crawler-worker totyumengr/crawler-worker:v${jar_version}
 echo "5.done"

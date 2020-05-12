@@ -42,7 +42,7 @@ public class TaskWorker {
 	@Value("${worker.initialDelay}")
 	private int initialDelay;
 	
-	@Value("${worker.period}")
+	@Value("${worker.task.period}")
 	private int period;
 	
 	@Value("${worker.wait.timeout}")
