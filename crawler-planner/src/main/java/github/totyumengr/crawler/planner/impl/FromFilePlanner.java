@@ -2,6 +2,7 @@ package github.totyumengr.crawler.planner.impl;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.List;
 
 import javax.annotation.PostConstruct;
 
@@ -55,7 +56,7 @@ public class FromFilePlanner extends SavePointPlanner {
 		Integer end = start + step;
 		
 		Story story = Crawlers.GSON.fromJson(template, Story.class);
-		story.setName(story.getName() + "-" + start);
+		story.setName(story.getName() + "-" + start + ".");
 		String urlTemplate = story.getArgs().get(0);
 		story.setArgs(new ArrayList<String>());
 		boolean overflow = false;

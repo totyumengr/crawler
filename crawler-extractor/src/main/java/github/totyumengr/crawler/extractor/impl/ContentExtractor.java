@@ -11,7 +11,7 @@ import org.springframework.stereotype.Component;
 import github.totyumengr.crawler.Crawlers;
 import github.totyumengr.crawler.extractor.Extractor;
 
-@Component("content.")
+@Component("content")
 public class ContentExtractor extends AbstractExtractor implements Extractor {
 	
 	@Override
@@ -35,7 +35,7 @@ public class ContentExtractor extends AbstractExtractor implements Extractor {
 	protected List<String> extractContent(String storyName, String url, JXDocument document, String html) {
 		
 		// 根据配置规则进行元素级内容的提取，并且进行结构化存储。
-		Object blockXpath = extractDataClient.getMap(Crawlers.XPATH_CONTENT + storyName).get(url);
+		Object blockXpath = extractDataClient.getMap(storyName + Crawlers.XPATH_CONTENT).get(url);
 		if (blockXpath == null) {
 			logger.info("{} Return because can not found {} of url={}", Crawlers.PLEASE_SET_EXTRACT_XPATH, Crawlers.XPATH_CONTENT, url);
 			List<String> forReturn = new ArrayList<String>(1);
@@ -59,14 +59,14 @@ public class ContentExtractor extends AbstractExtractor implements Extractor {
 		
 		// 没有解析出数据的情况
 		if (!haveData) {
-			Object antiXpath = extractDataClient.getMap(Crawlers.XPATH_CONTENT_ANTI + storyName).get(url);
+			Object antiXpath = extractDataClient.getMap(storyName + Crawlers.XPATH_CONTENT_ANTI).get(url);
 			if (antiXpath != null) {
 				String[] antiXpaths = antiXpath.toString().split("\\|");
 				for (String xpath : antiXpaths) {
 					JXNode node = document.selNOne(xpath);
 					if (node != null || html.contains(xpath)) {
 						String antiContent = node.toString();
-						extractDataClient.getMap(Crawlers.EXTRACTOR_CONTENT_ANTI_ALERT + storyName).put(url, html);
+						extractDataClient.getMap(storyName + Crawlers.EXTRACTOR_CONTENT_ANTI_ALERT).put(url, html);
 						logger.info("ALERT: {}, {} by {}", url, antiContent, antiXpath);
 						break;
 					}

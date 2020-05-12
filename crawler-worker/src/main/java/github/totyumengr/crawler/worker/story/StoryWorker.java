@@ -120,25 +120,20 @@ public class StoryWorker {
 				int argsSize = story.getArgs().size();
 				for (int j = 0; j < argsSize; j++) {
 					String url = story.getArgs().get(j);
+					Task submittedTask = null;
 					for (Map<String, String> task : story.getTasks()) {
-						
+
 						logger.info("{}/{} Start task={}", j, argsSize, task);
-						Task submittedTask = null;
+						
 						if (task.get(Crawlers.TASK_PARAMS).equals(Crawlers.TASK_PARAMS_ARGS)) {
 							// 从任务中获取参数，并提交
 							logger.info("Submit task={} using template={}", url, task.get(Crawlers.TASK_TEMPLATE));
 							submittedTask = taskWorker.submitTask(story.getName(), url, task.get(Crawlers.TASK_TEMPLATE));
-							// TODO: 当前写这么写，后续要优雅一些。
-							while (submittedTask.getRepostUrl() != null) {
-								submittedTask.setFromUrl(submittedTask.getRepostUrl());
-								submittedTask.setRepostUrl(null);
-								logger.info("Repost task={}", submittedTask.getFromUrl());
-								submittedTask = taskWorker.submitTask(submittedTask);
-							}
+							recyclebin(submittedTask);
 						}
 						if (task.get(Crawlers.TASK_PARAMS).equals(Crawlers.TASK_PARAMS_PIPELINE)) {
 							// 从上下文中获取参数，并提交
-							Object pipeline = storyDataClient.getMap(Crawlers.STORY_PIPELINE + story.getName()).get(url);
+							Object pipeline = storyDataClient.getMap(story.getName() + Crawlers.STORY_PIPELINE).get(url);
 							if (pipeline == null) {
 								logger.error("Can not found data from pipeline url={}", url);
 							} else {
@@ -149,6 +144,7 @@ public class StoryWorker {
 									String pipelineUrl = urlList.get(i);
 									logger.info("{}/{} Submit task={} using template={}", i, urlListSize, pipelineUrl, task.get(Crawlers.TASK_TEMPLATE));
 									submittedTask = taskWorker.submitTask(story.getName(), pipelineUrl, task.get(Crawlers.TASK_TEMPLATE));
+									recyclebin(submittedTask);
 								}
 							}
 						}
@@ -163,6 +159,20 @@ public class StoryWorker {
 		}
 	}
 	
+	private void recyclebin(Task task) {
+		
+		if (task.isAnti()) {
+			Object anti = storyDataClient.getMap(task.getStoryName() + Crawlers.EXTRACTOR_CONTENT_ANTI_ALERT).get(task.getFromUrl());
+			task.setAntiHtml(anti != null ? anti.toString() : "");
+			storyDataClient.getListMultimap(Crawlers.RECYCLE_BIN).put(task.getStoryName(), task);
+			logger.info("Put {} into recycle-bin because anti.", task);
+		}
+		if (!task.isEtlDone()) {
+			storyDataClient.getListMultimap(Crawlers.RECYCLE_BIN).put(task.getStoryName(), task);
+			logger.info("Put {} into recycle-bin because timeout.", task);
+		}
+	}
+	
 	private void openStory(Story story) throws Exception{
 		
 		File storyFolder = new File(storyExportDir, story.getName());
@@ -170,7 +180,7 @@ public class StoryWorker {
 			FileUtils.deleteDirectory(storyFolder);
 		}
 		
-		storyDataClient.getList(Crawlers.PREFIX_STORY_TRACE + story.getName()).clear();
+		storyDataClient.getList(story.getName() + Crawlers.PREFIX_STORY_TRACE).clear();
 	}
 	
 	private void preStory(Story story) {

@@ -40,7 +40,7 @@ public class PipelineResultExporter extends AbstractResultExporter implements Re
 		
 		// 更新到上下文中
 		String json = Crawlers.GSON.toJson(extractUrl);
-		pipelineDataClient.getMap(Crawlers.STORY_PIPELINE + task.getStoryName()).put(task.getFromUrl(), json);
+		pipelineDataClient.getMap(task.getStoryName() + Crawlers.STORY_PIPELINE).put(task.getFromUrl(), json);
 		logger.info("Put pipeline of {}", task.getFromUrl());
 	}
 }

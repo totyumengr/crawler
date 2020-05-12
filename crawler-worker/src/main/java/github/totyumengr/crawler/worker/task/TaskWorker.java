@@ -45,6 +45,9 @@ public class TaskWorker {
 	@Value("${worker.period}")
 	private int period;
 	
+	@Value("${worker.wait.timeout}")
+	private int timeout;
+	
 	@Value("${worker.runner.anti.pause}")
 	private int pause;
 	
@@ -71,32 +74,11 @@ public class TaskWorker {
 		public void run() {
 			
 			// 检查抽取完成的结果
-			Object structData = structDataClient.getMap(Crawlers.PREFIX_EXTRACT_DATA + task.getExtractor() + task.getStoryName()).get(nextPageUrl);
+			Object structData = structDataClient.getMap(task.getStoryName() + Crawlers.PREFIX_EXTRACT_DATA + task.getExtractor()).get(nextPageUrl);
 			if (structData != null) {
 				// 获取下一页链接
 				Map<String, Object> extractData = Crawlers.GSON.fromJson(structData.toString(),
 						new TypeToken<Map<String, Object>>() {}.getType());
-				
-				// 处理Repost
-				String repostUrl = extractData.containsKey(Crawlers.REPOST) ? 
-						extractData.get(Crawlers.REPOST).toString() : null;
-//				String repostCookie = extractData.containsKey(Crawlers.REPOST_COOKIE) ? 
-//						extractData.get(Crawlers.REPOST_COOKIE).toString() : null;
-				// TODO: Cancel当前的任务，更新后重新Launch
-				if (repostUrl != null && repostUrl.length() > 0) {
-					// 更新Cookie
-					task.setRepostUrl(repostUrl);
-//					task.setFromUrl(repostUrl);
-//					List<Map<String, String>> cookies = task.getCookies();
-//					if (cookies == null) {
-//						cookies = new ArrayList<Map<String, String>>();
-//						task.setCookies(cookies);
-//					}
-					
-					// 通知任务完成
-					countDown.countDown();
-					return;
-				}
 						
 				String nextPageUrl = extractData.containsKey(Crawlers.XPATH_PAGINGBAR_NEXTURL_ELEMENTS) ? 
 						extractData.get(Crawlers.XPATH_PAGINGBAR_NEXTURL_ELEMENTS).toString() : null;
@@ -104,7 +86,7 @@ public class TaskWorker {
 				if (nextPageUrl != null && pagingCnt >= 1) {
 					this.nextPageUrl = nextPageUrl;
 					// 第三步：记录关联
-					structDataClient.getList(Crawlers.PREFIX_TASK_RELATED_URLS + task.getFromUrl() + task.getStoryName()).add(nextPageUrl);
+					structDataClient.getList(task.getStoryName() + Crawlers.PREFIX_TASK_RELATED_URLS + task.getFromUrl()).add(nextPageUrl);
 
 					// 提交任务
 					doSubmitTask(nextPageUrl, task);
@@ -112,6 +94,7 @@ public class TaskWorker {
 					// 第五步：记录翻页次数
 					pagingCnt--;
 				} else {
+					task.setEtlDone(true);
 					// 通知任务完成
 					countDown.countDown();
 				}
@@ -134,8 +117,9 @@ public class TaskWorker {
 		public void run() {
 			
 			// 检查抽取完成的结果
-			Object structData = structDataClient.getMap(Crawlers.PREFIX_EXTRACT_DATA + task.getExtractor() + task.getStoryName()).get(task.getFromUrl());
+			Object structData = structDataClient.getMap(task.getStoryName() + Crawlers.PREFIX_EXTRACT_DATA + task.getExtractor()).get(task.getFromUrl());
 			if (structData != null) {
+				task.setEtlDone(true);
 				countDown.countDown();
 			}
 		}
@@ -144,16 +128,16 @@ public class TaskWorker {
 	private void doSubmitTask(String url, Task task) {
 		
 		// 第一步：设置Extractor类型
-		structDataClient.getMap(Crawlers.EXTRACTOR + task.getStoryName()).put(url, task.getExtractor());
+		structDataClient.getMap(task.getStoryName() + Crawlers.EXTRACTOR).put(url, task.getExtractor());
 		
 		// 第二步：设置提取器的规则
 		for (Entry<String, String> entry : task.getExtractRules().entrySet()) {
-			structDataClient.getMap(entry.getKey() + task.getStoryName()).put(url, entry.getValue());
+			structDataClient.getMap(task.getStoryName() + entry.getKey()).put(url, entry.getValue());
 		}
 		
 		// 增加Cookie设置
 		if (task.getCookies() != null) {
-			structDataClient.getMap(Crawlers.COOKIES + task.getStoryName()).put(url, Crawlers.GSON.toJson(task.getCookies()));
+			structDataClient.getMap(task.getStoryName() + Crawlers.COOKIES).put(url, Crawlers.GSON.toJson(task.getCookies()));
 		}
 		
 		// 第四步：Launch
@@ -166,7 +150,7 @@ public class TaskWorker {
 		// 记录Trace
 		if (task.isTraceLog()) {
 			task.setLogUrl(url);
-			structDataClient.getList(Crawlers.PREFIX_STORY_TRACE + task.getStoryName()).add(Crawlers.GSON.toJson(task));
+			structDataClient.getList(task.getStoryName() + Crawlers.PREFIX_STORY_TRACE).add(Crawlers.GSON.toJson(task));
 		}
 	}
 	
@@ -179,11 +163,11 @@ public class TaskWorker {
 		// 第三步：设置翻页逻辑
 		if (task.isPageDown()) {
 			nextPageSE.scheduleWithFixedDelay(new NextPage(task, countDown),
-					initialDelay, period, TimeUnit.SECONDS);
+					initialDelay, period, TimeUnit.MILLISECONDS);
 			logger.info("Start nextpage watcher fromUrl={}", task.getFromUrl());
 		} else {
 			currentPagePageSE.scheduleWithFixedDelay(new CurrentPage(task, countDown),
-					initialDelay, period, TimeUnit.SECONDS);
+					initialDelay, period, TimeUnit.MILLISECONDS);
 		}
 		
 		try {
@@ -194,22 +178,19 @@ public class TaskWorker {
 		}
 		
 		// 当前任务执行完成
-		countDown.await();
+		countDown.await(timeout, TimeUnit.SECONDS);
 		
-		// 如果是任务正常结束
-		if (task.getRepostUrl() == null) {
-			try {
-				// 第五步：落地任务结果
-				ResultExporter exporter = applicationContext.getBean(task.getLanding(), ResultExporter.class);
-				logger.info("Start exporter on fromUrl={}", task.getFromUrl());
-				exporter.export(task);
-			} catch (Exception e) {
-				logger.error("Error when export task={}", task.getFromUrl());
-			}
+		try {
+			// 第五步：落地任务结果
+			ResultExporter exporter = applicationContext.getBean(task.getLanding(), ResultExporter.class);
+			logger.info("Start exporter on fromUrl={}", task.getFromUrl());
+			exporter.export(task);
+		} catch (Exception e) {
+			logger.error("Error when export task={}", task.getFromUrl());
 		}
 		
 		// 判断是否被反抓取
-		Object alert = structDataClient.getMap(Crawlers.EXTRACTOR_CONTENT_ANTI_ALERT + task.getStoryName()).get(task.getFromUrl());
+		Object alert = structDataClient.getMap(task.getStoryName() + Crawlers.EXTRACTOR_CONTENT_ANTI_ALERT).get(task.getFromUrl());
 		if (alert != null) {
 			task.setAnti(true);
 		}
@@ -263,33 +244,19 @@ public class TaskWorker {
 			}
 			logger.info("RESUME: try next task...");
 			
-			structDataClient.getMap(Crawlers.PREFIX_EXTRACT_DATA + task.getExtractor()  + task.getStoryName()).fastRemoveAsync(task.getLogUrl());
-			structDataClient.getMap(Crawlers.EXTRACTOR_CONTENT_ANTI_ALERT + task.getStoryName()).fastRemoveAsync(task.getLogUrl());
+			structDataClient.getMap(task.getStoryName() + Crawlers.PREFIX_EXTRACT_DATA + task.getExtractor()).fastRemoveAsync(task.getLogUrl());
+			structDataClient.getMap(task.getStoryName() + Crawlers.EXTRACTOR_CONTENT_ANTI_ALERT).fastRemoveAsync(task.getLogUrl());
 		}
 	}
 	
 	public void cleanIntermediateData(Task task) {
 		
 		try {
-			structDataClient.getMap(Crawlers.PREFIX_EXTRACT_DATA + task.getExtractor()  + task.getStoryName()).fastRemoveAsync(task.getLogUrl());
-			structDataClient.getMap(Crawlers.EXTRACTOR_CONTENT_ANTI_ALERT + task.getStoryName()).fastRemoveAsync(task.getLogUrl());
-			
-			structDataClient.getMap(Crawlers.BACKLOG_REPUSH + task.getStoryName()).fastRemoveAsync(task.getLogUrl());
-			
-			structDataClient.getMap(Crawlers.XPATH_LIST_ELEMENTS + task.getStoryName()).fastRemoveAsync(task.getLogUrl());
-			structDataClient.getMap(Crawlers.XPATH_RECORD_ELEMENTS + task.getStoryName()).fastRemoveAsync(task.getLogUrl());
-			structDataClient.getMap(Crawlers.XPATH_PAGINGBAR_ELEMENTS + task.getStoryName()).fastRemoveAsync(task.getLogUrl());
-			structDataClient.getMap(Crawlers.XPATH_PAGINGBAR_NEXTURL_ELEMENTS + task.getStoryName()).fastRemoveAsync(task.getLogUrl());
-			
-			structDataClient.getMap(Crawlers.XPATH_CONTENT + task.getStoryName()).fastRemoveAsync(task.getLogUrl());
-			structDataClient.getMap(Crawlers.XPATH_CONTENT_ANTI + task.getStoryName()).fastRemoveAsync(task.getLogUrl());
-			
-			structDataClient.getMap(Crawlers.COOKIES + task.getStoryName()).fastRemoveAsync(task.getLogUrl());
-			structDataClient.getMap(Crawlers.EXTRACTOR + task.getStoryName()).fastRemoveAsync(task.getLogUrl());
-			
-			structDataClient.getList(Crawlers.PREFIX_TASK_RELATED_URLS + task.getLogUrl() + task.getStoryName()).clear();
-			
-			structDataClient.getMap(Crawlers.STORY_PIPELINE + task.getStoryName()).fastRemoveAsync(task.getLogUrl());
+			structDataClient.getMap(task.getStoryName() + Crawlers.PREFIX_EXTRACT_DATA + task.getExtractor()).fastRemoveAsync(task.getLogUrl());
+			structDataClient.getList(task.getStoryName() + Crawlers.PREFIX_TASK_RELATED_URLS + task.getLogUrl()).clear();
+			for (String key : Crawlers.intermediateDataKeys()) {
+				structDataClient.getMap(task.getStoryName() + key).fastRemoveAsync(task.getLogUrl());
+			}
 			logger.info("Done... Clean intermidiate data url={}", task.getLogUrl());
 		} catch (Exception e) {
 			logger.error("Error when try to clean intermidiate data url={}", task.getLogUrl());
@@ -302,10 +269,10 @@ public class TaskWorker {
 		
 		ScheduledExecutorService emulatorSE = Executors.newSingleThreadScheduledExecutor();
 		emulatorSE.scheduleWithFixedDelay(new CurrentPage(task, countDown),
-				initialDelay, period, TimeUnit.SECONDS);
+				initialDelay, period, TimeUnit.MILLISECONDS);
 		
 		// 第一步：设置Extractor类型
-		structDataClient.getMap(Crawlers.EXTRACTOR + task.getStoryName()).put(task.getFromUrl(), task.getExtractor());
+		structDataClient.getMap(task.getStoryName() + Crawlers.EXTRACTOR).put(task.getFromUrl(), task.getExtractor());
 		
 		// 第四步：Launch
 		structDataClient.getQueue(Crawlers.EMULATOR_BACKLOG).add(Crawlers.GSON.toJson(task));
@@ -314,7 +281,7 @@ public class TaskWorker {
 		// 记录Trace
 		if (task.isTraceLog()) {
 			task.setLogUrl(task.getFromUrl());
-			structDataClient.getList(Crawlers.PREFIX_STORY_TRACE + task.getStoryName()).add(Crawlers.GSON.toJson(task));
+			structDataClient.getList(task.getStoryName() + Crawlers.PREFIX_STORY_TRACE).add(Crawlers.GSON.toJson(task));
 		}
 		
 		countDown.await();

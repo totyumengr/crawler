@@ -29,7 +29,7 @@ public abstract class AbstractResultExporter implements ResultExporter {
 		logger.info("Put result into pipeline {}", task.getFromUrl());
 		List<String> allUrl = new ArrayList<String>();
 		allUrl.add(task.getFromUrl());
-		List<Object> relatedUrls = pipelineDataClient.getList(Crawlers.PREFIX_TASK_RELATED_URLS + task.getFromUrl() + task.getStoryName());
+		List<Object> relatedUrls = pipelineDataClient.getList(task.getStoryName() + Crawlers.PREFIX_TASK_RELATED_URLS + task.getFromUrl());
 		if (relatedUrls != null) {
 			for (Object relatedUrl : relatedUrls) {
 				allUrl.add(relatedUrl.toString());
@@ -39,7 +39,7 @@ public abstract class AbstractResultExporter implements ResultExporter {
 		
 		List<List<String>> extractResult = new ArrayList<List<String>>();
 		for (String url : allUrl) {
-			Object structData = pipelineDataClient.getMap(Crawlers.PREFIX_EXTRACT_DATA + task.getExtractor() + task.getStoryName()).get(url);
+			Object structData = pipelineDataClient.getMap(task.getStoryName() + Crawlers.PREFIX_EXTRACT_DATA + task.getExtractor()).get(url);
 			if (structData != null) {
 				// 获取结构化抽取内容
 				Map<String, Object> extractData = Crawlers.GSON.fromJson(structData.toString(),

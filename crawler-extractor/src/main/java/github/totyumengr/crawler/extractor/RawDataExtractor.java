@@ -36,7 +36,7 @@ public class RawDataExtractor {
 	
 	private String determineExtractor(String storyName, String url) {
 		
-		Object extractor = rawDataClient.getMap(Crawlers.EXTRACTOR + storyName).get(url);
+		Object extractor = rawDataClient.getMap(storyName + Crawlers.EXTRACTOR).get(url);
 		return extractor == null ? null : extractor.toString();
 	}
 	

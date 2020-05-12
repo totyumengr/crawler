@@ -29,12 +29,12 @@ public abstract class SavePointPlanner {
 	protected Logger logger = LoggerFactory.getLogger(getClass());
 	
 	@Autowired
-	private RedissonClient storyDataClient;
+	protected RedissonClient storyDataClient;
 	
 	@Value("${planner.initialDelay}")
-	private int initialDelay;
+	protected int initialDelay;
 	@Value("${planner.period}")
-	private int period;
+	protected int period;
 	
 	@Value("${planner.step}")
 	protected int step;
@@ -49,6 +49,10 @@ public abstract class SavePointPlanner {
 	protected abstract ImmutablePair<Story, String> generateStory(String template, String savePoint);
 	
 	public final CountDownLatch END = new CountDownLatch(1);
+	
+	protected void handlerPlannerClose() {
+		// Do nothing
+	}
 	
 	@PostConstruct
 	private void init() throws Exception {
@@ -77,6 +81,9 @@ public abstract class SavePointPlanner {
 					ImmutablePair<Story, String> forReturn = generateStory(doubanTemplate, storyInQueue == null ? null : storyInQueue.toString());
 					if (forReturn.getLeft() == null) {
 						// Means is done...
+						handlerPlannerClose();
+						
+						storyDataClient.getMap(PLANNER_SAVEPOINT).put(templateName(), 0);
 						storyScanner.shutdown();
 						END.countDown();
 						logger.info("Shutdown...");

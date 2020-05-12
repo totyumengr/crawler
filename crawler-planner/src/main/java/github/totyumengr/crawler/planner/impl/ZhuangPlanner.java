@@ -31,7 +31,7 @@ public class ZhuangPlanner extends SavePointPlanner {
 		String argsEL = start + "," + end;
 		
 		Story story = Crawlers.GSON.fromJson(template, Story.class);
-		story.setName(story.getName() + "-" + start);
+		story.setName(story.getName() + "-" + start + ".");
 		story.setArgsEL(argsEL);
 		
 		return new ImmutablePair<Crawlers.Story, String>(story, end.toString());

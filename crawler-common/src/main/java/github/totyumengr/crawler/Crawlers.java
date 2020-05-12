@@ -2,6 +2,7 @@ package github.totyumengr.crawler;
 
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -17,34 +18,56 @@ import com.google.gson.GsonBuilder;
  *
  */
 public final class Crawlers {
+	
+	public static List<String> intermediateDataKeys() {
+		
+		return Arrays.asList(
+				Crawlers.EXTRACTOR_CONTENT_ANTI_ALERT, 
+				Crawlers.BACKLOG_REPUSH, 
+				Crawlers.XPATH_LIST_ELEMENTS, 
+				Crawlers.XPATH_RECORD_ELEMENTS, 
+				Crawlers.XPATH_PAGINGBAR_ELEMENTS, 
+				Crawlers.XPATH_PAGINGBAR_NEXTURL_ELEMENTS,
+				Crawlers.XPATH_CONTENT,
+				Crawlers.XPATH_CONTENT_ANTI,
+				Crawlers.COOKIES,
+				Crawlers.EXTRACTOR,
+				Crawlers.STORY_PIPELINE
+				);
+	}
 
 	// Redis Keys ----------------------------------------
 	// Queue
 	public static final String BACKLOG = "crawler.backlog";
+	
 	public static final String EMULATOR_BACKLOG = "crawler.backlog.emulator";
 	public static final String RAWDATA = "crawler.rawdata";
-
+	
 	// Map
 	public static final String PROXYPOOL = "crawler.proxypool";
-	public static final String BACKLOG_REPUSH = "crawler.backlog.repush.";
+	public static final String BACKLOG_REPUSH = "crawler.backlog.repush";
+	// 设置过期时间
+	public static final String RECYCLE_BIN = "crawer.recyclebin";
+
+	public static final String EXTRACTOR = "crawler.extractor";
+	public static final String EXTRACTOR_CONTENT_ANTI_ALERT = "crawler.extractor.anti.alert";
 	
-	public static final String EXTRACTOR = "crawler.extractor.";
-	public static final String EXTRACTOR_CONTENT_ANTI_ALERT = "crawler.extractor.anti.alert.";
+	public static final String COOKIES = "fetcher.cookies";
+	
+	public static final String XPATH_LIST_ELEMENTS = "extractor.paging.list";
+	public static final String XPATH_RECORD_ELEMENTS = "extractor.paging.list.record";
+	public static final String XPATH_PAGINGBAR_ELEMENTS = "extractor.paging.bar";
+	public static final String XPATH_PAGINGBAR_NEXTURL_ELEMENTS = "extractor.paging.bar.nexturl";
+	public static final String XPATH_CONTENT = "extractor.content";
+	public static final String XPATH_CONTENT_ANTI = "extractor.content.anti";
+	
+	public static final String STORY_PIPELINE = "worker.pipeline";
+	
 	public static final String PREFIX_EXTRACT_DATA = "crawler.structdata.";
-	public static final String COOKIES = "fetcher.cookies.";
-	
-	public static final String XPATH_LIST_ELEMENTS = "extractor.paging.list.";
-	public static final String XPATH_RECORD_ELEMENTS = "extractor.paging.list.record.";
-	public static final String XPATH_PAGINGBAR_ELEMENTS = "extractor.paging.bar.";
-	public static final String XPATH_PAGINGBAR_NEXTURL_ELEMENTS = "extractor.paging.bar.nexturl.";
-	public static final String XPATH_CONTENT = "extractor.content.";
-	public static final String XPATH_CONTENT_ANTI = "extractor.content.anti.";
-	
 	public static final String PREFIX_TASK_RELATED_URLS = "worker.task.relatedurls.";
-	public static final String STORY_PIPELINE = "worker.pipeline.";
 	
 	// Trace
-	public static final String PREFIX_STORY_TRACE = "worker.trace.";
+	public static final String PREFIX_STORY_TRACE = "worker.trace";
 	// ---------------------------------------------------
 	
 	public static final String URL = "url";
@@ -179,7 +202,21 @@ public final class Crawlers {
 		private String repostUrl;
 		// 是否被反抓取了
 		private boolean anti;
+		private String antiHtml;
+		private boolean etlDone;
 		
+		public boolean isEtlDone() {
+			return etlDone;
+		}
+		public void setEtlDone(boolean etlDone) {
+			this.etlDone = etlDone;
+		}
+		public String getAntiHtml() {
+			return antiHtml;
+		}
+		public void setAntiHtml(String antiHtml) {
+			this.antiHtml = antiHtml;
+		}
 		public boolean isAnti() {
 			return anti;
 		}
