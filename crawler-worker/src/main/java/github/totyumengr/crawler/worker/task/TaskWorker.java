@@ -39,7 +39,7 @@ public class TaskWorker {
 	@Autowired
 	private ApplicationContext applicationContext;
 	
-	@Value("${worker.initialDelay}")
+	@Value("${worker.task.initialDelay}")
 	private int initialDelay;
 	
 	@Value("${worker.task.period}")
@@ -210,8 +210,9 @@ public class TaskWorker {
 		
 		String taskJson = taskData.toString();
 		Task task;
+		int taskRetry = retry;
 		do {
-			retry--;
+			taskRetry--;
 			logger.info("Start task={}, and have {} retry times.", taskJson, retry);
 			// 获得任务配置
 			task = Crawlers.GSON.fromJson(taskJson, Task.class);
@@ -227,7 +228,7 @@ public class TaskWorker {
 				submitTask(task);
 				antiHandler(task);
 			}
-		} while (task.isAnti() && retry > 0);
+		} while (task.isAnti() && taskRetry > 0);
 		
 		return task;
 	}

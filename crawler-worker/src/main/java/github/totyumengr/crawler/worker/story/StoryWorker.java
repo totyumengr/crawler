@@ -207,7 +207,7 @@ public class StoryWorker {
 	
 	private void closeStory(Story story) {
 		
-		List<Object> storyTrace = storyDataClient.getList(Crawlers.PREFIX_STORY_TRACE + story.getName());
+		List<Object> storyTrace = storyDataClient.getList(story.getName() + Crawlers.PREFIX_STORY_TRACE);
 		if (storyTrace == null) {
 			logger.info("Do not clean story={} because cannot found trace info.", story.getName());
 			return;

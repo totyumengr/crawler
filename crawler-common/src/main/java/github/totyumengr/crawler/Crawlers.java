@@ -201,9 +201,9 @@ public final class Crawlers {
 		private String logUrl;
 		private String repostUrl;
 		// 是否被反抓取了
-		private boolean anti;
+		private volatile boolean anti;
+		private volatile boolean etlDone;
 		private String antiHtml;
-		private boolean etlDone;
 		
 		public boolean isEtlDone() {
 			return etlDone;
