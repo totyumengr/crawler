@@ -164,16 +164,16 @@ public class StoryWorker {
 		if (task.isAnti()) {
 			Object anti = storyDataClient.getMap(task.getStoryName() + Crawlers.EXTRACTOR_CONTENT_ANTI_ALERT).get(task.getFromUrl());
 			task.setAntiHtml(anti != null ? anti.toString() : "");
-			storyDataClient.getListMultimap(Crawlers.RECYCLE_BIN).put(task.getStoryName(), task);
-			logger.info("Put {} into recycle-bin because anti.", task);
+			storyDataClient.getListMultimap(Crawlers.RECYCLE_BIN).put(task.getStoryName(), Crawlers.GSON.toJson(task));
+			logger.info("Put {} into recycle-bin because anti.", task.getFromUrl());
 		}
 		if (!task.isEtlDone()) {
-			storyDataClient.getListMultimap(Crawlers.RECYCLE_BIN).put(task.getStoryName(), task);
-			logger.info("Put {} into recycle-bin because timeout.", task);
+			storyDataClient.getListMultimap(Crawlers.RECYCLE_BIN).put(task.getStoryName(), Crawlers.GSON.toJson(task));
+			logger.info("Put {} into recycle-bin because timeout.", task.getFromUrl());
 		}
 	}
 	
-	private void openStory(Story story) throws Exception{
+	private void openStory(Story story) throws Exception {
 		
 		File storyFolder = new File(storyExportDir, story.getName());
 		if (storyFolder.exists()) {
