@@ -207,14 +207,15 @@ public class StoryWorker {
 	
 	private void closeStory(Story story) {
 		
-		List<Object> storyTrace = storyDataClient.getList(story.getName() + Crawlers.PREFIX_STORY_TRACE);
-		if (storyTrace == null) {
-			logger.info("Do not clean story={} because cannot found trace info.", story.getName());
-			return;
-		}
-		
 		File storyFolder = new File(storyExportDir, story.getName());
 		try {
+			
+			List<Object> storyTrace = storyDataClient.getList(story.getName() + Crawlers.PREFIX_STORY_TRACE);
+			if (storyTrace == null) {
+				logger.info("Do not clean story={} because cannot found trace info.", story.getName());
+				return;
+			}
+			
 			if (!storyFolder.exists()) {
 				FileUtils.forceMkdir(storyFolder);
 			}
@@ -239,7 +240,7 @@ public class StoryWorker {
 			logger.error("Error when try to logging story={}", story.getName());
 		} finally {
 			try {
-				storyDataClient.getList(Crawlers.PREFIX_STORY_TRACE + story.getName()).clear();
+				storyDataClient.getList(story.getName() + Crawlers.PREFIX_STORY_TRACE).clear();
 				logger.info("Done... Expire intermidiate data");
 			} catch (Exception e) {
 				logger.error("Error when try to Expire intermidiate data", e);
