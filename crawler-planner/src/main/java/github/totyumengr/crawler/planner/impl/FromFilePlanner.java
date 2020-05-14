@@ -1,6 +1,8 @@
 package github.totyumengr.crawler.planner.impl;
 
 import java.io.File;
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
 import java.util.ArrayList;
 
 import javax.annotation.PostConstruct;
@@ -45,7 +47,10 @@ public class FromFilePlanner extends SavePointPlanner {
 		
 		File f = new File (storyDir, getFileName());
 		String doubanTemplate = FileUtils.readFileToString(f, "UTF-8");
-		bookIds = doubanTemplate.split("\n");
+		bookIds = doubanTemplate.split("\r\n");
+		if (bookIds.length < 2) {
+			bookIds = doubanTemplate.split("\n");
+		}
 	}
 	
 	@Override
@@ -71,13 +76,19 @@ public class FromFilePlanner extends SavePointPlanner {
 		
 		if (!overflow) {
 			for (int i = start; i < lasted; i++) {
-				story.getArgs().add(String.format(urlTemplate, bookIds[i]));
+				String format = bookIds[i];
+				try {
+					format = URLEncoder.encode(bookIds[i], "UTF-8");
+				} catch (UnsupportedEncodingException e) {
+					// Do nothing
+				}
+				story.getArgs().add(String.format(urlTemplate, format));
 			}
 			logger.info("Fill {} into story..", story.getArgs().size());
 			return new ImmutablePair<Crawlers.Story, String>(story, end.toString());
 		} else {
 			logger.info("Overflow... return null... {}", savePoint);
-			return null;
+			return new ImmutablePair<Crawlers.Story, String>(null, end.toString());
 		}
 	}
 

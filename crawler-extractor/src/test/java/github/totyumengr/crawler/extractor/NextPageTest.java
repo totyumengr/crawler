@@ -1,6 +1,7 @@
 package github.totyumengr.crawler.extractor;
 
 import java.net.URL;
+import java.net.URLEncoder;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -29,6 +30,10 @@ public class NextPageTest {
 		URL url2 = new URL("https://book.douban.com");
 		Assert.assertEquals("", url2.getPath());
 		Assert.assertEquals(null, url2.getQuery());
+		
+		String template = "https://search.smzdm.com/?c=post&s=%s&v=b";
+		String encode = URLEncoder.encode("六一 你好", "UTF-8");
+		System.out.println(String.format(template, encode));
 	}
 	
 	@Test
