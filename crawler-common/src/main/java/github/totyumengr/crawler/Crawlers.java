@@ -13,6 +13,7 @@ import org.apache.commons.lang3.tuple.ImmutablePair;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.reflect.TypeToken;
 
 /**
  * 一些常量定义
@@ -242,6 +243,12 @@ public final class Crawlers {
 		}
 		public void setStoryName(String storyName) {
 			this.storyName = storyName;
+		}
+		
+		public static Task deepClone(Task task) {
+			
+			String taskJson = GSON.toJson(task);
+			return GSON.fromJson(taskJson, new TypeToken<Task>() {}.getType());
 		}
 	}
 	

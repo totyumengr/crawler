@@ -4,11 +4,13 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 import org.redisson.api.RedissonClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 
 import github.totyumengr.crawler.Crawlers;
 import github.totyumengr.crawler.extractor.Extractor;
@@ -19,6 +21,9 @@ public abstract class AbstractExtractor implements Extractor {
 	
 	@Autowired
 	protected RedissonClient extractDataClient;
+	
+	@Value("${extractor.structdata.ttl}")
+	private int ttl;
 	
 	protected abstract Map<String, Object> doExtract(String storyName, String url, String html, List<List<String>> coreData);
 
@@ -46,6 +51,7 @@ public abstract class AbstractExtractor implements Extractor {
         	// 解析完成，转换为JSON进行存储
     		String json = Crawlers.GSON.toJson(structData);
     		extractDataClient.getQueue(storyName + Crawlers.EXTRACT_STRUCT_DATA + extractor + url).add(json);
+    		extractDataClient.getQueue(storyName + Crawlers.EXTRACT_STRUCT_DATA + extractor + url).expire(ttl, TimeUnit.DAYS);
     		logger.info("Success to extract for url={}, push into {}", url, Crawlers.EXTRACT_STRUCT_DATA);
         }
 		

@@ -139,7 +139,7 @@ public class StoryWorker {
 								int urlListSize = urlList.size();
 								for (int i = 0; i < urlListSize; i++) {
 									String pipelineUrl = urlList.get(i);
-									logger.info("{}/{} Submit task={} using template={}", i, urlListSize, pipelineUrl, task.get(Crawlers.TASK_TEMPLATE));
+									logger.info("{}/{}-{}/{} Submit task={} using template={}", j, argsSize, i, urlListSize, pipelineUrl, task.get(Crawlers.TASK_TEMPLATE));
 									submittedTask = taskWorker.submitTask(story.getName(), pipelineUrl, task.get(Crawlers.TASK_TEMPLATE));
 									recyclebin(submittedTask);
 								}

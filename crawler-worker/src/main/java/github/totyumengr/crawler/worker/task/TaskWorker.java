@@ -82,7 +82,7 @@ public class TaskWorker {
 					return;
 				}
 				taskResult.put(nextPageUrl, structData.toString());
-				logger.info("Found task result of {}", nextPageUrl);
+				logger.info("Found task result of {}, {}", nextPageUrl, structData);
 				
 				// 获取下一页链接
 				Map<String, Object> extractData = Crawlers.GSON.fromJson(structData.toString(),
@@ -93,10 +93,8 @@ public class TaskWorker {
 				// 有效的链接	
 				if (nextPageUrl != null && pagingCnt >= 1) {
 					this.nextPageUrl = nextPageUrl;
-
 					// 提交任务
 					doSubmitTask(nextPageUrl, task);
-					
 					// 第五步：记录翻页次数
 					pagingCnt--;
 				} else {
@@ -152,8 +150,10 @@ public class TaskWorker {
 		
 		// 第四步：Launch
 		String submitTarget = task.getEmulator() == null ? Crawlers.BACKLOG : Crawlers.EMULATOR_BACKLOG;
-		task.setFromUrl(url);
-		structDataClient.getQueue(submitTarget).add(Crawlers.GSON.toJson(task));
+		// 不改变原有的Task
+		Task forSubmit = Task.deepClone(task);
+		forSubmit.setFromUrl(url);
+		structDataClient.getQueue(submitTarget).add(Crawlers.GSON.toJson(forSubmit));
 		logger.info("Launch task fromUrl={}", url);
 		
 		// 记录Trace
