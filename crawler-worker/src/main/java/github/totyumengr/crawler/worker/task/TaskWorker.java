@@ -82,6 +82,7 @@ public class TaskWorker {
 					return;
 				}
 				taskResult.put(nextPageUrl, structData.toString());
+				logger.info("Found task result of {}", nextPageUrl);
 				
 				// 获取下一页链接
 				Map<String, Object> extractData = Crawlers.GSON.fromJson(structData.toString(),
@@ -129,6 +130,7 @@ public class TaskWorker {
 				if (structData == null) {
 					return;
 				}
+				logger.info("Found task result of {}", task.getFromUrl());
 				taskResult.put(task.getFromUrl(), structData.toString());
 				task.setEtlDone(true);
 				countDown.countDown();
@@ -150,6 +152,7 @@ public class TaskWorker {
 		
 		// 第四步：Launch
 		String submitTarget = task.getEmulator() == null ? Crawlers.BACKLOG : Crawlers.EMULATOR_BACKLOG;
+		task.setFromUrl(url);
 		structDataClient.getQueue(submitTarget).add(Crawlers.GSON.toJson(task));
 		logger.info("Launch task fromUrl={}", url);
 		

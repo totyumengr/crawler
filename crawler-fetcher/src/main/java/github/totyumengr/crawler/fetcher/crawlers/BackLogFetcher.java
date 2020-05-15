@@ -101,6 +101,7 @@ public class BackLogFetcher extends BaseSeimiCrawler {
 						String cookieJson = Crawlers.GSON.toJson(task.getCookies());
 						List<SeimiCookie> seimiCookie = Crawlers.GSON.fromJson(cookieJson, new TypeToken<List<SeimiCookie>>() {}.getType());
 					    req.setSeimiCookies(seimiCookie);
+					    logger.info("Set cookie url={}, {}", url, cookieJson);
 					}
 
 					req.setProxyAuthenticatorName(proxyAuthenticatorName);
