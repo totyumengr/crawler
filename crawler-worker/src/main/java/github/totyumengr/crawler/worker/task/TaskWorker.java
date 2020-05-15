@@ -1,5 +1,6 @@
 package github.totyumengr.crawler.worker.task;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.CountDownLatch;
@@ -52,7 +53,7 @@ public class TaskWorker {
 	private int retry;
 	
 	abstract class PageData implements Runnable {
-		Map<String, String> taskResult;
+		public Map<String, String> taskResult = new HashMap<String, String>();
 	}
 	
 	class NextPage extends PageData implements Runnable {
@@ -74,32 +75,36 @@ public class TaskWorker {
 		@Override
 		public void run() {
 			
-			// 检查抽取完成的结果
-			Object structData = structDataClient.getQueue(task.getStoryName() + Crawlers.EXTRACT_STRUCT_DATA + task.getExtractor() + nextPageUrl).poll();
-			if (structData == null) {
-				return;
-			}
-			taskResult.put(nextPageUrl, structData.toString());
-			
-			// 获取下一页链接
-			Map<String, Object> extractData = Crawlers.GSON.fromJson(structData.toString(),
-					new TypeToken<Map<String, Object>>() {}.getType());
-					
-			String nextPageUrl = extractData.containsKey(Crawlers.XPATH_PAGINGBAR_NEXTURL_ELEMENTS) ? 
-					extractData.get(Crawlers.XPATH_PAGINGBAR_NEXTURL_ELEMENTS).toString() : null;
-			// 有效的链接	
-			if (nextPageUrl != null && pagingCnt >= 1) {
-				this.nextPageUrl = nextPageUrl;
-
-				// 提交任务
-				doSubmitTask(nextPageUrl, task);
+			try {
+				// 检查抽取完成的结果
+				Object structData = structDataClient.getQueue(task.getStoryName() + Crawlers.EXTRACT_STRUCT_DATA + task.getExtractor() + nextPageUrl).poll();
+				if (structData == null) {
+					return;
+				}
+				taskResult.put(nextPageUrl, structData.toString());
 				
-				// 第五步：记录翻页次数
-				pagingCnt--;
-			} else {
-				task.setEtlDone(true);
-				// 通知任务完成
-				countDown.countDown();
+				// 获取下一页链接
+				Map<String, Object> extractData = Crawlers.GSON.fromJson(structData.toString(),
+						new TypeToken<Map<String, Object>>() {}.getType());
+						
+				String nextPageUrl = extractData.containsKey(Crawlers.XPATH_PAGINGBAR_NEXTURL_ELEMENTS) ? 
+						extractData.get(Crawlers.XPATH_PAGINGBAR_NEXTURL_ELEMENTS).toString() : null;
+				// 有效的链接	
+				if (nextPageUrl != null && pagingCnt >= 1) {
+					this.nextPageUrl = nextPageUrl;
+
+					// 提交任务
+					doSubmitTask(nextPageUrl, task);
+					
+					// 第五步：记录翻页次数
+					pagingCnt--;
+				} else {
+					task.setEtlDone(true);
+					// 通知任务完成
+					countDown.countDown();
+				}
+			} catch (Exception e) {
+				logger.info("Error when try to get current page result.", e);
 			}
 		}
 	}
@@ -117,14 +122,19 @@ public class TaskWorker {
 
 		@Override
 		public void run() {
-			Object structData = structDataClient.getQueue(task.getStoryName()
-					+ Crawlers.EXTRACT_STRUCT_DATA + task.getExtractor() + task.getFromUrl()).poll();
-			if (structData == null) {
-				return;
+			
+			try {
+				Object structData = structDataClient.getQueue(task.getStoryName()
+						+ Crawlers.EXTRACT_STRUCT_DATA + task.getExtractor() + task.getFromUrl()).poll();
+				if (structData == null) {
+					return;
+				}
+				taskResult.put(task.getFromUrl(), structData.toString());
+				task.setEtlDone(true);
+				countDown.countDown();
+			} catch (Exception e) {
+				logger.info("Error when try to get current page result.", e);
 			}
-			taskResult.put(task.getFromUrl(), structData.toString());
-			task.setEtlDone(true);
-			countDown.countDown();
 		}
 	}
 	
