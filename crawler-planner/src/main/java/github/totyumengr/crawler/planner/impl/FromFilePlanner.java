@@ -41,6 +41,16 @@ public class FromFilePlanner extends SavePointPlanner {
 	public void setStoryTempalteName(String storyTempalteName) {
 		this.storyTempalteName = storyTempalteName;
 	}
+	
+	@Override
+	protected String templateName() {
+		return getStoryTempalteName();
+	}
+
+	@Override
+	protected String plannerName() {
+		return fileName;
+	}
 
 	@PostConstruct
 	public void init() throws Exception {
@@ -90,10 +100,5 @@ public class FromFilePlanner extends SavePointPlanner {
 			logger.info("Overflow... return null... {}", savePoint);
 			return new ImmutablePair<Crawlers.Story, String>(null, end.toString());
 		}
-	}
-
-	@Override
-	protected String templateName() {
-		return getStoryTempalteName();
 	}
 }

@@ -22,6 +22,16 @@ public class ZhuangPlanner extends SavePointPlanner {
 	public void setStoryTempalteName(String storyTempalteName) {
 		this.storyTempalteName = storyTempalteName;
 	}
+	
+	@Override
+	protected String templateName() {
+		return getStoryTempalteName();
+	}
+
+	@Override
+	protected String plannerName() {
+		return "zhuang";
+	}
 
 	@Override
 	protected ImmutablePair<Story, String> generateStory(String template, String savePoint) {
@@ -34,11 +44,7 @@ public class ZhuangPlanner extends SavePointPlanner {
 		story.setName(story.getName() + "-" + start + ".");
 		story.setArgsEL(argsEL);
 		
+		// TODO: 需要设置退出条件，比如最大的ID是多少
 		return new ImmutablePair<Crawlers.Story, String>(story, end.toString());
-	}
-
-	@Override
-	protected String templateName() {
-		return getStoryTempalteName();
 	}
 }

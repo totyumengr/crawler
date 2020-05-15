@@ -42,9 +42,13 @@ public abstract class SavePointPlanner {
 	protected String storyDir;
 	
 	public static final String PLANNER_SAVEPOINT = "planner.savepoint";
+	public static final String PLANNER_STORY_HISTORY = "planner.story";
+	
 	public static final String STORY_QUEUE = "worker.story";
 	
 	protected abstract String templateName();
+	
+	protected abstract String plannerName();
 	
 	protected abstract ImmutablePair<Story, String> generateStory(String template, String savePoint);
 	
@@ -89,9 +93,14 @@ public abstract class SavePointPlanner {
 						logger.info("Shutdown...");
 					} else {
 						String storyJson = Crawlers.GSON.toJson(forReturn.getLeft());
+						// 提交到工作队列
 						storyDataClient.getQueue(STORY_QUEUE).add(storyJson);
 						
+						// 设置Save Point
 						storyDataClient.getMap(PLANNER_SAVEPOINT).put(templateName(), forReturn.getRight());
+						// 存入History
+						storyDataClient.getListMultimap(PLANNER_STORY_HISTORY).get(plannerName()).add(storyJson);
+						
 						// 找到一个Story
 						logger.info("Planing a story and submit it. {}", storyJson);
 					}

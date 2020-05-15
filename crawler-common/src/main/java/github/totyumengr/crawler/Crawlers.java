@@ -49,6 +49,7 @@ public final class Crawlers {
 	public static final String RAWDATA = "crawler.rawdata";
 	public static final String EXTRACT_STRUCT_DATA = "crawler.structdata";
 	public static final String STORY_FILE_QUEYE = "worker.story";
+	public static final String STORY_FILE_QUEYE_DONE = "worker.story.done";
 	
 	// 无需清除
 	public static final String RECYCLE_BIN = "crawer.recyclebin";
