@@ -9,6 +9,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import org.apache.commons.lang3.tuple.ImmutablePair;
+
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
@@ -19,55 +21,54 @@ import com.google.gson.GsonBuilder;
  */
 public final class Crawlers {
 	
-	public static List<String> intermediateDataKeys() {
+	public static ImmutablePair<List<String>, List<String>> clearDataKeys() {
 		
-		return Arrays.asList(
-				Crawlers.EXTRACTOR_CONTENT_ANTI_ALERT, 
-				Crawlers.BACKLOG_REPUSH, 
-				Crawlers.XPATH_LIST_ELEMENTS, 
-				Crawlers.XPATH_RECORD_ELEMENTS, 
-				Crawlers.XPATH_PAGINGBAR_ELEMENTS, 
-				Crawlers.XPATH_PAGINGBAR_NEXTURL_ELEMENTS,
-				Crawlers.XPATH_CONTENT,
-				Crawlers.XPATH_CONTENT_ANTI,
-				Crawlers.COOKIES,
-				Crawlers.EXTRACTOR,
-				Crawlers.STORY_PIPELINE
-				);
+		return new ImmutablePair<List<String>, List<String>> (
+				Arrays.asList(
+					Crawlers.EXTRACTOR_CONTENT_ANTI_ALERT, 
+					Crawlers.BACKLOG_REPUSH, 
+					Crawlers.XPATH_LIST_ELEMENTS, 
+					Crawlers.XPATH_RECORD_ELEMENTS, 
+					Crawlers.XPATH_PAGINGBAR_ELEMENTS, 
+					Crawlers.XPATH_PAGINGBAR_NEXTURL_ELEMENTS,
+					Crawlers.XPATH_CONTENT,
+					Crawlers.XPATH_CONTENT_ANTI,
+					Crawlers.EXTRACTOR,
+					Crawlers.STORY_PIPELINE
+				), 
+				Arrays.asList(
+					Crawlers.STORY_TRACE
+				)
+			);
 	}
 
 	// Redis Keys ----------------------------------------
 	// Queue
 	public static final String BACKLOG = "crawler.backlog";
-	
 	public static final String EMULATOR_BACKLOG = "crawler.backlog.emulator";
 	public static final String RAWDATA = "crawler.rawdata";
+	public static final String EXTRACT_STRUCT_DATA = "crawler.structdata";
+	public static final String STORY_FILE_QUEYE = "worker.story";
+	
+	// 无需清除
+	public static final String RECYCLE_BIN = "crawer.recyclebin";
+	public static final String PROXYPOOL = "crawler.proxypool";
+	public static final String STORY_TASKS = "worker.story.tasks";
 	
 	// Map
-	public static final String PROXYPOOL = "crawler.proxypool";
 	public static final String BACKLOG_REPUSH = "crawler.backlog.repush";
-	// 设置过期时间
-	public static final String RECYCLE_BIN = "crawer.recyclebin";
-
 	public static final String EXTRACTOR = "crawler.extractor";
 	public static final String EXTRACTOR_CONTENT_ANTI_ALERT = "crawler.extractor.anti.alert";
-	
-	public static final String COOKIES = "fetcher.cookies";
-	
 	public static final String XPATH_LIST_ELEMENTS = "extractor.paging.list";
 	public static final String XPATH_RECORD_ELEMENTS = "extractor.paging.list.record";
 	public static final String XPATH_PAGINGBAR_ELEMENTS = "extractor.paging.bar";
 	public static final String XPATH_PAGINGBAR_NEXTURL_ELEMENTS = "extractor.paging.bar.nexturl";
 	public static final String XPATH_CONTENT = "extractor.content";
 	public static final String XPATH_CONTENT_ANTI = "extractor.content.anti";
-	
 	public static final String STORY_PIPELINE = "worker.pipeline";
 	
-	public static final String PREFIX_EXTRACT_DATA = "crawler.structdata.";
-	public static final String PREFIX_TASK_RELATED_URLS = "worker.task.relatedurls.";
-	
-	// Trace
-	public static final String PREFIX_STORY_TRACE = "worker.trace";
+	// ListMultiMap
+	public static final String STORY_TRACE = "worker.trace";
 	// ---------------------------------------------------
 	
 	public static final String URL = "url";

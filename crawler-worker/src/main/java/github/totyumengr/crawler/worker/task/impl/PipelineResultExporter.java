@@ -2,6 +2,7 @@ package github.totyumengr.crawler.worker.task.impl;
 
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 import org.springframework.stereotype.Component;
@@ -19,7 +20,7 @@ import github.totyumengr.crawler.worker.task.ResultExporter;
 public class PipelineResultExporter extends AbstractResultExporter implements ResultExporter {
 
 	@Override
-	public void doExport(Task task, List<List<String>> extractData, List<String> allUrl) {
+	public void doExport(Task task, List<List<String>> extractData, Collection<String> allUrl) {
 		
 		List<String> extractUrl = new ArrayList<String>();
 		for (List<String> d : extractData) {

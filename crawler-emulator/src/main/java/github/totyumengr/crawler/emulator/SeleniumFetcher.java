@@ -259,8 +259,8 @@ public class SeleniumFetcher {
 						coreData.add(l);
 					}
 					String json = Crawlers.GSON.toJson(structData);
-					fetcherClient.getMap(task.getStoryName() + Crawlers.PREFIX_EXTRACT_DATA + task.getExtractor()).put(search.getUrl(), json);
-		    		logger.info("Success to extract for url={}, push into {}", search.getUrl(), Crawlers.PREFIX_EXTRACT_DATA);
+					fetcherClient.getQueue(task.getStoryName() + Crawlers.EXTRACT_STRUCT_DATA + task.getExtractor() + search.getUrl()).add(json);
+		    		logger.info("Success to extract for url={}, push into {}", search.getUrl(), Crawlers.EXTRACT_STRUCT_DATA);
 				} catch (Exception e) {
 					fetcherClient.getQueue(Crawlers.EMULATOR_BACKLOG).add(taskData);
 					logger.error("Error occurred, push back to queue.", e);

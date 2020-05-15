@@ -1,5 +1,7 @@
 package github.totyumengr.crawler.worker.task;
 
+import java.util.Map;
+
 import github.totyumengr.crawler.Crawlers.Task;
 
 /**
@@ -9,5 +11,5 @@ import github.totyumengr.crawler.Crawlers.Task;
  */
 public interface ResultExporter {
 
-	void export(Task task);
+	void export(Task task, Map<String, String> taskData);
 }

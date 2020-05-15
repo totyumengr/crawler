@@ -59,6 +59,7 @@ public class ContentExtractor extends AbstractExtractor implements Extractor {
 		
 		// 没有解析出数据的情况
 		if (!haveData) {
+			logger.info("Can not extract data from {}", html);
 			Object antiXpath = extractDataClient.getMap(storyName + Crawlers.XPATH_CONTENT_ANTI).get(url);
 			if (antiXpath != null) {
 				String[] antiXpaths = antiXpath.toString().split("\\|");

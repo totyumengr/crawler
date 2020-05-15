@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 
@@ -27,7 +28,7 @@ public class FileTaskResultExporter extends AbstractResultExporter implements Re
 	
 	private static final String HEADER = "====================";
 	
-	protected void pushHeader(List<String> c, List<String> allUrl) {
+	protected void pushHeader(List<String> c, Collection<String> allUrl) {
 		
 		// 输出Header部分
 		c.add(HEADER);
@@ -36,7 +37,7 @@ public class FileTaskResultExporter extends AbstractResultExporter implements Re
 	}
 	
 	@Override
-	public void doExport(Task task, List<List<String>> extractData, List<String> allUrl) {
+	public void doExport(Task task, List<List<String>> extractData, Collection<String> allUrl) {
 		
 		File storyFolder = new File(storyExportDir, task.getStoryName());
 		try {

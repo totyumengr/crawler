@@ -45,8 +45,8 @@ public abstract class AbstractExtractor implements Extractor {
         } finally {
         	// 解析完成，转换为JSON进行存储
     		String json = Crawlers.GSON.toJson(structData);
-    		extractDataClient.getMap(storyName + Crawlers.PREFIX_EXTRACT_DATA + extractor).put(url, json);
-    		logger.info("Success to extract for url={}, push into {}", url, Crawlers.PREFIX_EXTRACT_DATA);
+    		extractDataClient.getQueue(storyName + Crawlers.EXTRACT_STRUCT_DATA + extractor + url).add(json);
+    		logger.info("Success to extract for url={}, push into {}", url, Crawlers.EXTRACT_STRUCT_DATA);
         }
 		
 		return true;

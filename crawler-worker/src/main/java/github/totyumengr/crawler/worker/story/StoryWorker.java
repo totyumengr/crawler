@@ -60,9 +60,6 @@ public class StoryWorker {
 	@Value("${worker.runner.parallel}")
 	private int storyRunnerParallel;
 	
-	public static final String STORY_FILE_QUEYE = "worker.story";
-	public static final String STORY_TASKS = "worker.story.tasks";
-	
 	@PostConstruct
 	private void init() {
 		
@@ -70,7 +67,7 @@ public class StoryWorker {
 		ThreadPoolExecutor storyRunner = new ThreadPoolExecutor((storyRunnerParallel / 3), storyRunnerParallel,
                 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<Runnable>(1));
 		
-		logger.info("Start to watch {}", STORY_FILE_QUEYE);
+		logger.info("Start to watch {}", Crawlers.STORY_FILE_QUEYE);
 		storyScanner.scheduleWithFixedDelay(new Runnable() {
 
 			@Override
@@ -78,14 +75,14 @@ public class StoryWorker {
 				
 				Object storyInQueue = null;
 				try {
-					storyInQueue = storyDataClient.getQueue(STORY_FILE_QUEYE).poll();
+					storyInQueue = storyDataClient.getQueue(Crawlers.STORY_FILE_QUEYE).poll();
 					if (storyInQueue != null) {
 						storyRunner.submit(new StoryRunner(storyInQueue.toString()));
 						// 找到一个Story
 						logger.info("Found a story and submit it. {}", storyInQueue);
 					}
 				} catch (RejectedExecutionException e) {
-					storyDataClient.getQueue(STORY_FILE_QUEYE).add(storyInQueue);
+					storyDataClient.getQueue(Crawlers.STORY_FILE_QUEYE).add(storyInQueue);
 					logger.info("Reject and push back to queue {}", storyInQueue);
 				} catch (Exception e) {
 					logger.error("Error when try to take a story.", e);
@@ -173,6 +170,21 @@ public class StoryWorker {
 		}
 	}
 	
+	public void cleanIntermediateData(Story story) {
+		
+		try {
+			for (String key : Crawlers.clearDataKeys().getLeft()) {
+				storyDataClient.getMap(story.getName() + key).clear();
+			}
+			for (String key : Crawlers.clearDataKeys().getRight()) {
+				storyDataClient.getListMultimap(story.getName() + key).clear();
+			}
+			logger.info("Done... Clean intermidiate data story={}", story.getName());
+		} catch (Exception e) {
+			logger.error("Error when try to clean intermidiate data story={}", story.getName());
+		}
+	}
+	
 	private void openStory(Story story) throws Exception {
 		
 		File storyFolder = new File(storyExportDir, story.getName());
@@ -180,7 +192,8 @@ public class StoryWorker {
 			FileUtils.deleteDirectory(storyFolder);
 		}
 		
-		storyDataClient.getList(story.getName() + Crawlers.PREFIX_STORY_TRACE).clear();
+		// For 重跑的场景
+		cleanIntermediateData(story);
 	}
 	
 	private void preStory(Story story) {
@@ -210,7 +223,7 @@ public class StoryWorker {
 		File storyFolder = new File(storyExportDir, story.getName());
 		try {
 			
-			List<Object> storyTrace = storyDataClient.getList(story.getName() + Crawlers.PREFIX_STORY_TRACE);
+			List<Object> storyTrace = storyDataClient.getListMultimap(story.getName() + Crawlers.STORY_TRACE).get(Crawlers.STORY_TRACE);
 			if (storyTrace == null) {
 				logger.info("Do not clean story={} because cannot found trace info.", story.getName());
 				return;
@@ -229,9 +242,6 @@ public class StoryWorker {
 				Task task = Crawlers.GSON.fromJson(taskLog.toString(),
 						new TypeToken<Task>() {}.getType());
 				c.add(task.getLogUrl());
-				
-				// 清除中间数据（当前为了清理翻页相关数据）
-				taskWorker.cleanIntermediateData(task);
 			}
 			FileUtils.writeLines(storyLogFile, c, true);
 			logger.info("Story={} logging is done...", story.getName());
@@ -240,7 +250,7 @@ public class StoryWorker {
 			logger.error("Error when try to logging story={}", story.getName());
 		} finally {
 			try {
-				storyDataClient.getList(story.getName() + Crawlers.PREFIX_STORY_TRACE).clear();
+				cleanIntermediateData(story);
 				logger.info("Done... Expire intermidiate data");
 			} catch (Exception e) {
 				logger.error("Error when try to Expire intermidiate data", e);
