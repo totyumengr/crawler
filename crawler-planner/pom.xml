@@ -23,6 +23,12 @@
 	<dependencies>
 	
 		<dependency>
+		    <groupId>com.jd.jss</groupId>
+		    <artifactId>jss-sdk-java</artifactId>
+		    <version>1.4.2-SNAPSHOT</version>
+		</dependency>
+	
+		<dependency>
 			<groupId>github.totyumengr.crawler</groupId>
 			<artifactId>crawler-common</artifactId>
 			<version>1.0.1</version>

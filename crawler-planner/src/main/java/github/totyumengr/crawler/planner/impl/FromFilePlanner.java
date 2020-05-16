@@ -4,11 +4,19 @@ import java.io.File;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.util.ArrayList;
+import java.util.concurrent.Executors;
 
 import javax.annotation.PostConstruct;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
+import org.redisson.api.RedissonClient;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.stereotype.Component;
 
 import github.totyumengr.crawler.Crawlers;
 import github.totyumengr.crawler.Crawlers.Story;
@@ -19,10 +27,26 @@ import github.totyumengr.crawler.planner.SavePointPlanner;
  * @author mengran7
  *
  */
-public class FromFilePlanner extends SavePointPlanner {
+@Component
+@ConditionalOnProperty(value="planner.local", havingValue = "true")
+public class FromFilePlanner {
+	
+	protected Logger logger = LoggerFactory.getLogger(getClass());
+	
+	@Value("${planner.initialDelay}")
+	protected int initialDelay;
+	@Value("${planner.period}")
+	protected int period;
+	@Value("${planner.step}")
+	protected int step;
+	
+	@Value("${planner.storytpl.dir}")
+	private String storyDir;
+	
+	@Autowired
+	protected RedissonClient storyDataClient;
 	
 	private String[] bookIds;
-	
 	private String storyTempalteName;
 	private String fileName;
 	
@@ -41,19 +65,12 @@ public class FromFilePlanner extends SavePointPlanner {
 	public void setStoryTempalteName(String storyTempalteName) {
 		this.storyTempalteName = storyTempalteName;
 	}
-	
-	@Override
-	protected String templateName() {
-		return getStoryTempalteName();
-	}
-
-	@Override
-	protected String plannerName() {
-		return fileName;
-	}
 
 	@PostConstruct
 	public void init() throws Exception {
+		
+		this.setFileName("book_id.1");
+		this.setStoryTempalteName("book-douban-byId.json");
 		
 		File f = new File (storyDir, getFileName());
 		String doubanTemplate = FileUtils.readFileToString(f, "UTF-8");
@@ -61,10 +78,22 @@ public class FromFilePlanner extends SavePointPlanner {
 		if (bookIds.length < 2) {
 			bookIds = doubanTemplate.split("\n");
 		}
+		
+		f = new File (storyDir, getStoryTempalteName());
+		final String storyTemplate = FileUtils.readFileToString(f, "UTF-8");
+		
+		// 启动一个Plan
+	   SavePointPlanner planner = new SavePointPlanner(storyDataClient, initialDelay, period, Executors.newSingleThreadScheduledExecutor()) {
+			@Override
+			protected ImmutablePair<Story, String> generateStory(String planName, String template, String savePoint) {
+				return FromFilePlanner.this.generateStory(planName, storyTemplate, savePoint);
+			}
+		};
+		// 执行
+		planner.planExecute(getFileName(), doubanTemplate);
 	}
 	
-	@Override
-	protected ImmutablePair<Story, String> generateStory(String template, String savePoint) {
+	protected ImmutablePair<Story, String> generateStory(String planName, String template, String savePoint) {
 		
 		Integer start = Integer.valueOf(savePoint == null ? "0" : savePoint);
 		Integer end = start + step;

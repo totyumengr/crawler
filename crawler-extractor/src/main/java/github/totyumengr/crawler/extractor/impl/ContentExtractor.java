@@ -45,23 +45,25 @@ public class ContentExtractor extends AbstractExtractor implements Extractor {
 		
 		List<String> struct = new ArrayList<String>();
 		String[] xpaths = blockXpath.toString().split("\\|");
-		boolean haveData = false;
+		logger.info("Extract data using xpaths {}", blockXpath.toString());
 		for (String xpath : xpaths) {
 			// By 元素提取
 			List<JXNode> nodes = document.selN(xpath);
+			logger.info("Extract data using xpath {} found {}", xpath, nodes == null ? 0 : nodes.size());
 			if (nodes != null) {
 				for (JXNode node : nodes) {
 					struct.add(node.toString());
 				}
-				haveData = true;
 			}
 		}
+		logger.info("Contents found={} return of url={}", struct.size(), url);
 		
 		// 没有解析出数据的情况
-		if (!haveData) {
+		if (struct.size() == 0) {
 			logger.info("Can not extract data from {}", html);
 			Object antiXpath = extractDataClient.getMap(storyName + Crawlers.XPATH_CONTENT_ANTI).get(url);
 			if (antiXpath != null) {
+				logger.info("Anti check using {}", antiXpath.toString());
 				String[] antiXpaths = antiXpath.toString().split("\\|");
 				for (String xpath : antiXpaths) {
 					JXNode node = document.selNOne(xpath);
@@ -74,8 +76,6 @@ public class ContentExtractor extends AbstractExtractor implements Extractor {
 				}
 			}
 		}
-		
-		logger.info("Contents found={} return of url={}", struct.size(), url);
 		
 		return struct;
 	}

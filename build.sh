@@ -70,8 +70,8 @@ jar_version=$jar
 echo "3.docker-build"
 docker build -t totyumengr/crawler-emulator:v${jar_version} .
 echo "4.docker-run"
-docker run -e JAVA_OPTS="-server $redis_node_java_opts -Dfetcher.emulator.remoteaddress=http://host.docker.internal:4444/wd/hub" \
-    -d --name docker-crawler-emulator totyumengr/crawler-emulator:v${jar_version}
+#docker run -e JAVA_OPTS="-server $redis_node_java_opts -Dfetcher.emulator.remoteaddress=http://host.docker.internal:4444/wd/hub" \
+#    -d --name docker-crawler-emulator totyumengr/crawler-emulator:v${jar_version}
 echo "5.done"
 
 fetcher_project=${current_dir}/crawler-fetcher

@@ -1,4 +1,4 @@
-package github.totyumengr.crawler.worker.redission;
+package github.totyumengr.crawler;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -20,11 +20,14 @@ public class FetcherRedissionConfiguration implements RedissonAutoConfigurationC
 
 	@Value("${mac.docker.env}")
 	private boolean macDockerEnv;
+	@Value("${redisson.nettythreads}")
+	private int nettyThreads;
 	
 	@Override
 	public void customize(Config configuration) {
 		// 改变为String
 		configuration.setCodec(new StringCodec());
+		configuration.setNettyThreads(nettyThreads);
 		
 		if (macDockerEnv) {
 			HostPortNatMapper netMapper = new HostPortNatMapper();

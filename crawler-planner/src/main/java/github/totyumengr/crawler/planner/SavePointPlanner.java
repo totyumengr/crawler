@@ -1,20 +1,13 @@
 package github.totyumengr.crawler.planner;
 
-import java.io.File;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-import javax.annotation.PostConstruct;
-
-import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.redisson.api.RedissonClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 
 import github.totyumengr.crawler.Crawlers;
 import github.totyumengr.crawler.Crawlers.Story;
@@ -28,29 +21,57 @@ public abstract class SavePointPlanner {
 	
 	protected Logger logger = LoggerFactory.getLogger(getClass());
 	
-	@Autowired
-	protected RedissonClient storyDataClient;
-	
-	@Value("${planner.initialDelay}")
-	protected int initialDelay;
-	@Value("${planner.period}")
-	protected int period;
-	
-	@Value("${planner.step}")
-	protected int step;
-	@Value("${planner.storytpl.dir}")
-	protected String storyDir;
-	
 	public static final String PLANNER_SAVEPOINT = "planner.savepoint";
 	public static final String PLANNER_STORY_HISTORY = "planner.story";
-	
 	public static final String STORY_QUEUE = "worker.story";
 	
-	protected abstract String templateName();
+	protected RedissonClient storyDataClient;
+	protected int initialDelay;
+	protected int period;
+	protected ScheduledExecutorService storyScanner;
 	
-	protected abstract String plannerName();
+	public SavePointPlanner(RedissonClient storyDataClient, int initialDelay, int period,
+			ScheduledExecutorService storyScanner) {
+		super();
+		this.storyDataClient = storyDataClient;
+		this.initialDelay = initialDelay;
+		this.period = period;
+		this.storyScanner = storyScanner;
+	}
+
+	public ScheduledExecutorService getStoryScanner() {
+		return storyScanner;
+	}
+
+	public void setStoryScanner(ScheduledExecutorService storyScanner) {
+		this.storyScanner = storyScanner;
+	}
+
+	public RedissonClient getStoryDataClient() {
+		return storyDataClient;
+	}
+
+	public void setStoryDataClient(RedissonClient storyDataClient) {
+		this.storyDataClient = storyDataClient;
+	}
 	
-	protected abstract ImmutablePair<Story, String> generateStory(String template, String savePoint);
+	public int getInitialDelay() {
+		return initialDelay;
+	}
+
+	public void setInitialDelay(int initialDelay) {
+		this.initialDelay = initialDelay;
+	}
+
+	public int getPeriod() {
+		return period;
+	}
+
+	public void setPeriod(int period) {
+		this.period = period;
+	}
+
+	protected abstract ImmutablePair<Story, String> generateStory(String planName, String template, String savePoint);
 	
 	public final CountDownLatch END = new CountDownLatch(1);
 	
@@ -58,15 +79,15 @@ public abstract class SavePointPlanner {
 		// Do nothing
 	}
 	
-	@PostConstruct
-	private void init() throws Exception {
+	/**
+	 * 开始执行一个Plan，按照模板生成Story，并提交
+	 * @param plannerName
+	 * @param storyTemplate
+	 * @throws Exception
+	 */
+	public void planExecute(String plannerName, String storyTemplate) throws Exception {
 		
-		ScheduledExecutorService storyScanner = Executors.newSingleThreadScheduledExecutor();
-		
-		File f = new File (storyDir, templateName());
-		String doubanTemplate = FileUtils.readFileToString(f, "UTF-8");
-		
-		logger.info("Start to plan {}", doubanTemplate);
+		logger.info("Start to plan {}", plannerName);
 		storyScanner.scheduleWithFixedDelay(new Runnable() {
 
 			@Override
@@ -81,13 +102,13 @@ public abstract class SavePointPlanner {
 						return;
 					}
 					
-					storyInQueue = storyDataClient.getMap(PLANNER_SAVEPOINT).get(templateName());
-					ImmutablePair<Story, String> forReturn = generateStory(doubanTemplate, storyInQueue == null ? null : storyInQueue.toString());
+					storyInQueue = storyDataClient.getMap(PLANNER_SAVEPOINT).get(plannerName);
+					ImmutablePair<Story, String> forReturn = generateStory(plannerName, storyTemplate, storyInQueue == null ? null : storyInQueue.toString());
 					if (forReturn.getLeft() == null) {
 						// Means is done...
 						handlerPlannerClose();
 						
-						storyDataClient.getMap(PLANNER_SAVEPOINT).put(templateName(), 0);
+						storyDataClient.getMap(PLANNER_SAVEPOINT).put(plannerName, 0);
 						storyScanner.shutdown();
 						END.countDown();
 						logger.info("Shutdown...");
@@ -97,9 +118,9 @@ public abstract class SavePointPlanner {
 						storyDataClient.getQueue(STORY_QUEUE).add(storyJson);
 						
 						// 设置Save Point
-						storyDataClient.getMap(PLANNER_SAVEPOINT).put(templateName(), forReturn.getRight());
+						storyDataClient.getMap(PLANNER_SAVEPOINT).put(plannerName, forReturn.getRight());
 						// 存入History
-						storyDataClient.getListMultimap(PLANNER_STORY_HISTORY).get(plannerName()).add(storyJson);
+						storyDataClient.getListMultimap(PLANNER_STORY_HISTORY).get(plannerName).add(storyJson);
 						
 						// 找到一个Story
 						logger.info("Planing a story and submit it. {}", storyJson);

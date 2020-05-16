@@ -2,6 +2,7 @@ package github.totyumengr.crawler.fetcher;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.context.annotation.ComponentScan;
 
 /**
  * 抓取主程序入口。
@@ -9,6 +10,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  *
  */
 @SpringBootApplication
+@ComponentScan("github.totyumengr.crawler")
 public class FetcherApplication {
 
 	public static void main(String[] args) {
