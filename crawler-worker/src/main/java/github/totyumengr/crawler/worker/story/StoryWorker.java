@@ -250,7 +250,7 @@ public class StoryWorker {
 			logger.error("Error when try to logging story={}", story.getName());
 		} finally {
 			try {
-				storyDataClient.getQueue(Crawlers.STORY_FILE_QUEYE_DONE).add(Crawlers.GSON.toJson(story));
+				storyDataClient.getQueue(story.getPlanName() + Crawlers.STORY_FILE_QUEYE_DONE).add(Crawlers.GSON.toJson(story));
 				logger.info("Done...{}", story.getName());
 				cleanIntermediateData(story);
 			} catch (Exception e) {

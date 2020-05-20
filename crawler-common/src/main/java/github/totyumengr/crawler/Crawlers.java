@@ -53,6 +53,9 @@ public final class Crawlers {
 	public static final String STORY_FILE_QUEYE_DONE = "worker.story.done";
 	
 	// 无需清除
+	public static final String PLAN_RANNING = "crawer.planner.running";
+	public static final String PLAN_STORY_RUNNING = "crawer.planner.story.running";
+	public static final String PLAN_SAVE_POINT = "planner.savepoint";
 	public static final String RECYCLE_BIN = "crawer.recyclebin";
 	public static final String PROXYPOOL = "crawler.proxypool";
 	public static final String STORY_TASKS = "worker.story.tasks";
@@ -90,13 +93,22 @@ public final class Crawlers {
 	
 	public static final Gson GSON = new GsonBuilder().disableHtmlEscaping().create();
 	
+	public static final String DEFAULT_PLAN_NAME = "defaultPlan";
+	
 	public static final class Story {
 		
 		private String name;
 		private List<Map<String, String>> tasks;
 		private List<String> args;
 		private String argsEL;
+		private String planName = DEFAULT_PLAN_NAME;
 		
+		public String getPlanName() {
+			return planName;
+		}
+		public void setPlanName(String planName) {
+			this.planName = planName;
+		}
 		public String getName() {
 			return name;
 		}
