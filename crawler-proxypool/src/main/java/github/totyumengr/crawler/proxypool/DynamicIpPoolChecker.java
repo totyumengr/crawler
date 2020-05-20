@@ -158,6 +158,22 @@ public class DynamicIpPoolChecker extends BaseSeimiCrawler {
 		
 		Executors.newSingleThreadScheduledExecutor().scheduleWithFixedDelay(new CheckerTask(),
 				initialDelay, period, TimeUnit.SECONDS);
+		Executors.newSingleThreadExecutor().execute(new Runnable() {
+
+			@Override
+			public void run() {
+				while (true) {
+					try {
+						Object anti = checkerClient.getBlockingQueue(Crawlers.PROXYIP_ANTI).take();
+						String proxyIp = anti.toString();
+						checkerClient.getMap(Crawlers.PROXYPOOL).remove(proxyIp);
+						logger.info("Found {} in anti-list, maybe is not available, remove it", proxyIp);
+					} catch (Exception e) {
+						logger.info("Error when try to get anti proxy ip", e);
+					}
+				}				
+			}
+		});
 		logger.info("Start to check...");
 		
 		return new String[0];

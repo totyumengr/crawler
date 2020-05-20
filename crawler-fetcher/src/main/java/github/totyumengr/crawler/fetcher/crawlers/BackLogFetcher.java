@@ -204,10 +204,12 @@ public class BackLogFetcher extends BaseSeimiCrawler {
 		String realContent = content;
 		if (realContent == null) {
 			realContent = EMPTY_COUNT;
+			rawData.put(Crawlers.FETCHER_FAIL_STATUS, "true");
 		}
 		String hexContent = ByteBufUtil.hexDump(realContent.getBytes("UTF-8"));
 		rawData.put(Crawlers.CONTENT, hexContent);
 		rawData.put(Crawlers.STORY_NAME, storyName);
+		rawData.put(Crawlers.FETCHER_PROXYIP, proxy());
 		
 		fetcherClient.getQueue(Crawlers.RAWDATA).add(rawData);
 		logger.info("Push into queue={} which response of url={}", Crawlers.RAWDATA, url);
@@ -247,7 +249,7 @@ public class BackLogFetcher extends BaseSeimiCrawler {
 				logger.info("Return url={} to backlog because fail to fetch. {}", request.getUrl(), repushCount);
 			} else {
 				fetcherClient.getMap(storyName + Crawlers.BACKLOG_REPUSH).put(request.getUrl(), 0);
-				doResponse(storyName, request.getUrl(), EMPTY_COUNT);
+				doResponse(storyName, request.getUrl(), null);
 				logger.info("Give up Fail to fetch url={}", request.getUrl());
 			}
 		} catch (Exception e) {

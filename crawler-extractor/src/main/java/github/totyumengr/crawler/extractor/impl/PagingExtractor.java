@@ -16,7 +16,7 @@ import github.totyumengr.crawler.extractor.Extractor;
 public class PagingExtractor extends AbstractExtractor implements Extractor {
 
 	@Override
-	protected Map<String, Object> doExtract(String storyName, String url, String html, List<List<String>> coreData) {
+	protected Map<String, Object> doExtract(String storyName, String url, String html, List<List<String>> coreData, String status, String ip) {
 		
 		Map<String, Object> extraData = new HashMap<String, Object>();
 		JXDocument document = JXDocument.create(html);

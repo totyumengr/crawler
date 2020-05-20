@@ -25,22 +25,18 @@ public abstract class AbstractExtractor implements Extractor {
 	@Value("${extractor.structdata.ttl}")
 	private int ttl;
 	
-	protected abstract Map<String, Object> doExtract(String storyName, String url, String html, List<List<String>> coreData);
+	protected abstract Map<String, Object> doExtract(String storyName, String url, String html, List<List<String>> coreData, String status, String ip);
 
 	@Override
-	public boolean extract(String storyName, String url, String html, String extractor, String repostUrl, String repostCookie) {
+	public boolean extract(String storyName, String url, String html, String extractor, String status, String ip) {
 		
 		Map<String, Object> structData = new HashMap<String, Object>();
 		try {
 			List<List<String>> coreData = new ArrayList<List<String>>();
 			structData.put(Crawlers.EXTRACT_DATA, coreData);
-			if (repostUrl != null) {
-				structData.put(Crawlers.REPOST, repostUrl);
-				structData.put(Crawlers.REPOST_COOKIE, repostCookie);
-			}
 			
 			// 执行模板方法
-			Map<String, Object> extraData = doExtract(storyName, url, html, coreData);
+			Map<String, Object> extraData = doExtract(storyName, url, html, coreData, status, ip);
 			if (extraData != null) {
 				structData.putAll(extraData);
 			}

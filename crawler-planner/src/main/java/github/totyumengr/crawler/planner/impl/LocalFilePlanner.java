@@ -55,6 +55,9 @@ public class LocalFilePlanner extends SavePointPlanner {
 	@PostConstruct
 	public void init() throws Exception {
 		
+		// 启动
+		super.init();
+		
 		this.setFileName("book_id.1");
 		this.setStoryTempalteName("book-douban-byId.json");
 		

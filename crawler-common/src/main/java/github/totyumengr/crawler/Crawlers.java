@@ -51,6 +51,7 @@ public final class Crawlers {
 	public static final String EXTRACT_STRUCT_DATA = "crawler.structdata";
 	public static final String STORY_FILE_QUEYE = "worker.story";
 	public static final String STORY_FILE_QUEYE_DONE = "worker.story.done";
+	public static final String PROXYIP_ANTI = "crawler.proxypool.anti";
 	
 	// 无需清除
 	public static final String PLAN_RANNING = "crawer.planner.running";
@@ -78,9 +79,9 @@ public final class Crawlers {
 	
 	public static final String URL = "url";
 	public static final String CONTENT = "content";
+	public static final String FETCHER_FAIL_STATUS = "status";
+	public static final String FETCHER_PROXYIP = "ip";
 	public static final String STORY_NAME = "storyName";	
-	public static final String REPOST = "repost";
-	public static final String REPOST_COOKIE = "repost.cookie";
 	public static final String SEARCH_KEYWORD = "_kw_";
 	
 	public static final String TASK_TEMPLATE = "template";

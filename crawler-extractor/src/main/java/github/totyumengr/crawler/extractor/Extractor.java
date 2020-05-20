@@ -16,5 +16,5 @@ public interface Extractor {
 	 * @param 解析结果
 	 * @return 是否成功提取到结果
 	 */
-	boolean extract(String storyName, String url, String html, String extractorType, String repostUrl, String repostCookie);
+	boolean extract(String storyName, String url, String html, String extractorType, String status, String ip);
 }

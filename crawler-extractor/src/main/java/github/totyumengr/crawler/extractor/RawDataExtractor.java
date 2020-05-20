@@ -1,9 +1,11 @@
 package github.totyumengr.crawler.extractor;
 
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import javax.annotation.PostConstruct;
+import javax.annotation.PreDestroy;
 
 import org.redisson.api.RedissonClient;
 import org.slf4j.Logger;
@@ -40,15 +42,35 @@ public class RawDataExtractor {
 		return extractor == null ? null : extractor.toString();
 	}
 	
+	private ExecutorService executor = Executors.newSingleThreadExecutor();
 	/**
 	 * 启动
 	 */
 	@PostConstruct
 	private void init() {
 		
-		Executors.newSingleThreadExecutor().submit(new ExtractWorker());
+		executor.submit(new ExtractWorker());
 		logger.info("Start to watch {}", Crawlers.RAWDATA);
 	}
+	
+	/**
+	 * 关闭
+	 */
+	@PreDestroy
+	private void destory() {
+		// 设置信号量
+		running = false;
+		logger.info("Do destory logic {}", Crawlers.RAWDATA);
+		try {
+			Thread.sleep(3 * 1000);
+			executor.shutdownNow();
+		} catch (Exception e) {
+			// Ignore
+		}
+		logger.info("Stop to watch {}", Crawlers.RAWDATA);
+	}
+	
+	private volatile boolean running = true;
 	
 	/**
 	 * 内容提取器
@@ -61,7 +83,7 @@ public class RawDataExtractor {
 		public void run() {
 			
 			Object rawData = null;
-			while (true) {
+			while (running) {
 				try {
 					rawData = rawDataClient.getBlockingQueue(Crawlers.RAWDATA).take();
 					Map<String, String> res = Crawlers.GSON.fromJson(rawData.toString(),
@@ -78,20 +100,15 @@ public class RawDataExtractor {
 					String extractorType = determineExtractor(storyName, url);
 					logger.info("Use {} to extractor content of url={}", extractorType, url);
 					
-					// 处理REPOST
-					String repostUrl = null;
-					String repostCookie = null;
-					if (res.containsKey(Crawlers.REPOST)) {
-						repostUrl = new String(ByteBufUtil.decodeHexDump(res.get(Crawlers.REPOST)), "UTF-8");
-						repostCookie = new String(ByteBufUtil.decodeHexDump(res.get(Crawlers.REPOST_COOKIE)), "UTF-8");
-					}
-					
 					Extractor extractor = context.getBean(extractorType, Extractor.class);
 					
 					String content = new String(ByteBufUtil.decodeHexDump(res.get(Crawlers.CONTENT)), "UTF-8");
 					logger.info("extract from content {}", content.length());
 					
-					boolean isSuccess = extractor.extract(storyName, url, content, extractorType, repostUrl, repostCookie);
+					String status = res.get(Crawlers.FETCHER_FAIL_STATUS);
+					String ip = res.get(Crawlers.FETCHER_PROXYIP);
+					
+					boolean isSuccess = extractor.extract(storyName, url, content, extractorType, status, ip);
 					logger.info("Is Done={}...extract content of url={}", isSuccess, url);
 				} catch (NoSuchBeanDefinitionException nsbde) {
 					logger.error("UnSupport extractor type and put-back.", nsbde);

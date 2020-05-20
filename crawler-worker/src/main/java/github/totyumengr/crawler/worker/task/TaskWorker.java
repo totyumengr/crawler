@@ -232,37 +232,20 @@ public class TaskWorker {
 		int taskRetry = retry;
 		do {
 			taskRetry--;
-			logger.info("Start task={}, and have {} retry times.", taskJson, retry);
+			logger.info("Start task={}, and have {} retry times.", taskJson, taskRetry);
 			// 获得任务配置
 			task = Crawlers.GSON.fromJson(taskJson, Task.class);
 			// 改变任务的fromUrl
 			task.setFromUrl(url);
 			task.setStoryName(storyName);
-			// HTTP-Jar执行的任务
+			// 提交任务
 			submitTask(task);
-			antiHandler(task);
-		} while (task.isAnti() && taskRetry > 0);
+		} while (task.isAnti() && taskRetry > 0 && cleanIntermediateData(task));
 		
 		return task;
 	}
 	
-	private void antiHandler(Task task) {
-		
-		// 如果任务被Anti了，那就暂停。
-		if (task.isAnti()) {
-			logger.info("PAUSE: task have been anti-crawler... {}", task);
-			try {
-				Thread.sleep(pause * 60 * 1000);
-			} catch (Exception e) {
-				// Ignore
-			}
-			logger.info("RESUME: try next task...");
-			
-			cleanIntermediateData(task);
-		}
-	}
-	
-	private void cleanIntermediateData(Task task) {
+	private boolean cleanIntermediateData(Task task) {
 		
 		try {
 			for (String key : Crawlers.clearDataKeys().getLeft()) {
@@ -272,5 +255,7 @@ public class TaskWorker {
 		} catch (Exception e) {
 			logger.error("Error when try to clean intermidiate data task={}", task.getName());
 		}
+		
+		return true;
 	}
 }

@@ -7,8 +7,6 @@ import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
-import javax.annotation.PostConstruct;
-
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.redisson.api.RedissonClient;
 import org.slf4j.Logger;
@@ -78,7 +76,6 @@ public abstract class SavePointPlanner {
 	
 	private static final String RECYCLE_BIN_STORY = ".recyclebin.clean.";
 	
-	@PostConstruct
 	public void init() throws Exception {
 		
 		Executors.newSingleThreadScheduledExecutor().scheduleWithFixedDelay(new Runnable() {
@@ -105,12 +102,14 @@ public abstract class SavePointPlanner {
 									taskUrls.add(task.getFromUrl());
 								}
 								// 重新提交垃圾箱中的Task
-								story.setName(story.getName() + RECYCLE_BIN_STORY);
+								String originalStoryName = story.getName();
+								story.setName(originalStoryName + RECYCLE_BIN_STORY);
 								story.setArgs(taskUrls);
 								// 提交Story
 								submitStory(planName, story);
 								// 倾倒垃圾箱
-								storyDataClient.getListMultimap(Crawlers.RECYCLE_BIN).get(story.getName()).clear();
+								storyDataClient.getListMultimap(Crawlers.RECYCLE_BIN).fastRemove(originalStoryName);
+								logger.info("Clean {} out recycle-bin.", originalStoryName);
 							}
 						}
 						int runningStory = storyDataClient.getSetMultimap(Crawlers.PLAN_STORY_RUNNING).get(planName).size();

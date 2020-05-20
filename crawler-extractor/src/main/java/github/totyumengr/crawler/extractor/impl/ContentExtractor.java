@@ -15,11 +15,11 @@ import github.totyumengr.crawler.extractor.Extractor;
 public class ContentExtractor extends AbstractExtractor implements Extractor {
 	
 	@Override
-	protected Map<String, Object> doExtract(String storyName, String url, String html, List<List<String>> coreData) {
+	protected Map<String, Object> doExtract(String storyName, String url, String html, List<List<String>> coreData, String status, String ip) {
 		
 		JXDocument document = JXDocument.create(html);
 		// 开始解析结果列表
-        List<String> elements = extractContent(storyName, url, document, html);
+        List<String> elements = extractContent(storyName, url, document, html, status, ip);
         coreData.add(elements);
         
         // 没有额外的解析数据
@@ -32,7 +32,7 @@ public class ContentExtractor extends AbstractExtractor implements Extractor {
 	 * @param document 页面文档
 	 * @return 结构化提取的内容
 	 */
-	protected List<String> extractContent(String storyName, String url, JXDocument document, String html) {
+	protected List<String> extractContent(String storyName, String url, JXDocument document, String html, String status, String ip) {
 		
 		// 根据配置规则进行元素级内容的提取，并且进行结构化存储。
 		Object blockXpath = extractDataClient.getMap(storyName + Crawlers.XPATH_CONTENT).get(url);
@@ -68,9 +68,11 @@ public class ContentExtractor extends AbstractExtractor implements Extractor {
 				for (String xpath : antiXpaths) {
 					JXNode node = document.selNOne(xpath);
 					if (node != null || html.contains(xpath)) {
-						String antiContent = node.toString();
 						extractDataClient.getMap(storyName + Crawlers.EXTRACTOR_CONTENT_ANTI_ALERT).put(url, html);
-						logger.info("ALERT: {}, {} by {}", url, antiContent, antiXpath);
+						if (ip != null) {
+							extractDataClient.getQueue(Crawlers.PROXYIP_ANTI).add(ip);
+						}
+						logger.info("ALERT: {}, {} by {}", url, html, antiXpath);
 						break;
 					}
 				}

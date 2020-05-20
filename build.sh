@@ -117,7 +117,7 @@ jar_version=$jar
 echo "3.docker-build"
 docker build -t totyumengr/crawler-extractor:v${jar_version} .
 echo "4.docker-run"
-docker run -e JAVA_OPTS="-server $redis_node_java_opts -Dextractor.period=1" \
+docker run -e JAVA_OPTS="-server $redis_node_java_opts" \
     -d --name docker-crawler-extractor totyumengr/crawler-extractor:v${jar_version}
 echo "5.done"
 
