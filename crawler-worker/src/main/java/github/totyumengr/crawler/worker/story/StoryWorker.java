@@ -6,6 +6,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.RejectedExecutionException;
@@ -40,6 +42,9 @@ public class StoryWorker {
 	
 	protected Logger logger = LoggerFactory.getLogger(getClass());
 
+	@Value("${worker.id}")
+	private String storyWorkerId;
+	
 	@Autowired
 	private TaskWorker taskWorker;
 	
@@ -89,6 +94,15 @@ public class StoryWorker {
 				}
 			}
 		}, initialDelay, period, TimeUnit.SECONDS);
+		
+		logger.info("Start to resume doing workers after reboot");
+		Set<Entry<Object, Object>> doingKeys = storyDataClient.getMap(storyWorkerId + Crawlers.STORY_FILE_QUEYE_DOING).readAllEntrySet();
+		for (Entry<Object, Object> o : doingKeys) {
+			String key = o.getKey().toString();
+			String value = o.getValue().toString();
+			storyDataClient.getQueue(Crawlers.STORY_FILE_QUEYE).add(value);
+			logger.info("Reboot a story {} and submit it. {}", key, value);
+		}
 	}
 	
 	private class StoryRunner implements Runnable {
@@ -194,6 +208,9 @@ public class StoryWorker {
 		
 		// For 重跑的场景
 		cleanIntermediateData(story);
+		
+		// 记录Story状态
+		storyDataClient.getMap(storyWorkerId + Crawlers.STORY_FILE_QUEYE_DOING).put(story.getName(), Crawlers.GSON.toJson(story));
 	}
 	
 	private void preStory(Story story) {
@@ -250,6 +267,7 @@ public class StoryWorker {
 			logger.error("Error when try to logging story={}", story.getName());
 		} finally {
 			try {
+				storyDataClient.getMap(storyWorkerId + Crawlers.STORY_FILE_QUEYE_DOING).remove(story.getName());
 				storyDataClient.getQueue(story.getPlanName() + Crawlers.STORY_FILE_QUEYE_DONE).add(Crawlers.GSON.toJson(story));
 				logger.info("Done...{}", story.getName());
 				cleanIntermediateData(story);

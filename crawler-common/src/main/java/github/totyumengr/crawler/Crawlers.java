@@ -60,6 +60,7 @@ public final class Crawlers {
 	public static final String RECYCLE_BIN = "crawer.recyclebin";
 	public static final String PROXYPOOL = "crawler.proxypool";
 	public static final String STORY_TASKS = "worker.story.tasks";
+	public static final String STORY_FILE_QUEYE_DOING = "worker.story.doing";
 	
 	// Map
 	public static final String BACKLOG_REPUSH = "crawler.backlog.repush";
