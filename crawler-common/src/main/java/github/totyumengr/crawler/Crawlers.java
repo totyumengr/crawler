@@ -226,10 +226,10 @@ public final class Crawlers {
 			NEW, SUBMITTED, FETCHED, TIMEOUTED, EXPORTED, NO_EXPORTED, ANTIED
 		}
 		
-		private String status = STATUS.NEW.name() + "-" + new SimpleDateFormat("yyyy-MM-dd hh:mm:ss").format(new Date());
+		private String status = STATUS.NEW.name() + "-" + new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date());
 		
 		public void setStatus(String status) {
-			this.status = status + "-" + new SimpleDateFormat("yyyy-MM-dd hh:mm:ss").format(new Date());
+			this.status = status + "-" + new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date());
 		}
 		public void setAnti(boolean anti) {
 			this.anti = anti;
