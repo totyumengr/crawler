@@ -231,7 +231,8 @@ public class BackLogFetcher extends BaseSeimiCrawler {
 		String hexContent = ByteBufUtil.hexDump(realContent.getBytes("UTF-8"));
 		rawData.put(Crawlers.CONTENT, hexContent);
 		rawData.put(Crawlers.STORY_NAME, storyName);
-		rawData.put(Crawlers.FETCHER_PROXYIP, proxy());
+		String proxy = ByteBufUtil.hexDump(proxy().getBytes("UTF-8"));
+		rawData.put(Crawlers.FETCHER_PROXYIP, proxy);
 		
 		fetcherClient.getQueue(Crawlers.RAWDATA).add(rawData);
 		logger.info("Push into queue={} which response of url={}", Crawlers.RAWDATA, url);

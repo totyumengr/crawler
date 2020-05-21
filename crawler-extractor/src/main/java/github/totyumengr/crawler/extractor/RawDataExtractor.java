@@ -106,13 +106,14 @@ public class RawDataExtractor {
 					logger.info("extract from content {}", content.length());
 					
 					String status = res.get(Crawlers.FETCHER_FAIL_STATUS);
-					String ip = res.get(Crawlers.FETCHER_PROXYIP);
+					String ip = new String(ByteBufUtil.decodeHexDump(res.get(Crawlers.FETCHER_PROXYIP)), "UTF-8");
 					
 					boolean isSuccess = extractor.extract(storyName, url, content, extractorType, status, ip);
 					logger.info("Is Done={}...extract content of url={}", isSuccess, url);
 				} catch (NoSuchBeanDefinitionException nsbde) {
 					logger.error("UnSupport extractor type and put-back.", nsbde);
 				} catch (Exception e) {
+					logger.info("Raw data is {}", rawData);
 					logger.error("Extract error.", e);
 				}
 			}
