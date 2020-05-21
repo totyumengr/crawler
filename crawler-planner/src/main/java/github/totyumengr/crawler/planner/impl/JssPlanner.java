@@ -55,6 +55,8 @@ public class JssPlanner extends SavePointPlanner {
 	
 	@PostConstruct
 	public void init() throws Exception {
+		// 启动回捞
+		super.init();
 		
 		jss = new JingdongStorageService(new Credential(accessKey, secretKey));
 		boolean have = jss.hasBucket(source);
@@ -85,7 +87,7 @@ public class JssPlanner extends SavePointPlanner {
 						logger.info("Found {} crawler seed {}", seeds.length, objectSummary.getKey());
 						// TODO: 太占内存了。以后想个办法。
 						seedMap.put(objectSummary.getKey(), seeds);
-						   
+						
 						StorageObject seedTemplate = jss.bucket(source).prefix("template/").object(objectSummary.getKey()).get();
 						String seedTemplateContent = IOUtils.toString(seedTemplate.getInputStream(), "UTF-8");
 						// 执行

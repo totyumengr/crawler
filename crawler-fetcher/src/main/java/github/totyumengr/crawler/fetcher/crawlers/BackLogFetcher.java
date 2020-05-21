@@ -274,7 +274,7 @@ public class BackLogFetcher extends BaseSeimiCrawler {
 		try {
 			String useProxyIp = PROXY_LOCAL.get();
 			if (useProxyIp == null) {
-				Set<Object> proxys = fetcherClient.getMap(Crawlers.PROXYPOOL).keySet();
+				Set<Object> proxys = fetcherClient.getMap(Crawlers.PROXYPOOL).readAllKeySet();
 				if (proxys != null && proxys.size() > 0) {
 					Object[] ips = proxys.toArray();
 					useProxyIp = ips[RandomUtils.nextInt(0, ips.length)].toString();

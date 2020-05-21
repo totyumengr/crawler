@@ -1,7 +1,6 @@
 package github.totyumengr.crawler.worker.task.impl;
 
 import java.io.File;
-import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
@@ -26,6 +25,31 @@ public class FileTaskResultExporter extends AbstractResultExporter implements Re
 	@Value("${exporter.story.dir}")
 	private String storyExportDir;
 	
+	@Override
+	public void doExport(Task task, List<List<String>> extractData, Collection<String> allUrl) {
+		
+		List<String> c = new ArrayList<String>();
+		pushHeader(c, allUrl);
+		
+		boolean needWriteToFile = false;
+		// 输出Body部分
+		for (List<String> data : extractData) {
+			c.addAll(data);
+			if (data.size() > 0) {
+				needWriteToFile = true;
+			}
+		}
+		
+		// 开始写文件
+		if (needWriteToFile) {
+			String fileName = convertUrlToFileName(task.getFromUrl());
+			List<String> writeTo = preWriteToFile(c);
+			writeToFile(task.getStoryName(), fileName, writeTo, task);
+		} else {
+			logger.info("Do not write to file because empty... {}", task.getFromUrl());
+		}
+	}
+	
 	private static final String HEADER = "====================";
 	
 	protected void pushHeader(List<String> c, Collection<String> allUrl) {
@@ -36,41 +60,19 @@ public class FileTaskResultExporter extends AbstractResultExporter implements Re
 		c.add(HEADER);
 	}
 	
-	@Override
-	public void doExport(Task task, List<List<String>> extractData, Collection<String> allUrl) {
+	protected void writeToFile(String storyName, String fileName, List<String> contents, Task task) {
 		
-		File storyFolder = new File(storyExportDir, task.getStoryName());
 		try {
+			File storyFolder = new File(storyExportDir, storyName);
 			if (!storyFolder.exists()) {
 				FileUtils.forceMkdir(storyFolder);
 			}
+			File taskFile = new File(storyFolder, fileName);
+			FileUtils.touch(taskFile);
 			
-			List<String> c = new ArrayList<String>();
-			pushHeader(c, allUrl);
-			
-			boolean needWriteToFile = false;
-			// 输出Body部分
-			for (List<String> data : extractData) {
-				c.addAll(data);
-				if (data.size() > 0) {
-					needWriteToFile = true;
-				}
-			}
-			
-			// 开始写文件
-			if (needWriteToFile) {
-				File taskFile = new File(storyFolder, convertUrlToFileName(task.getFromUrl()));
-				FileUtils.touch(taskFile);
-				
-				// 模板方法
-				List<String> writeTo = preWriteToFile(c);
-				
-				FileUtils.writeLines(taskFile, writeTo, true);	
-				logger.info("Done... Write content to file. {}", task.getFromUrl());
-			} else {
-				logger.info("Do not write to file because empty... {}", task.getFromUrl());
-			}
-		} catch (IOException e) {
+			FileUtils.writeLines(taskFile, contents, true);	
+			logger.info("Done... Write content to file. {}", task.getFromUrl());
+		} catch (Exception e) {
 			logger.error("Error when try to export task result url={}", task.getFromUrl(), e);
 		}
 	}
@@ -87,7 +89,7 @@ public class FileTaskResultExporter extends AbstractResultExporter implements Re
 			String path = u.getPath().replace("/", "");
 			String query = (u.getQuery() == null ? "" : u.getQuery());
 			String fileName = path + (query != "" ? "-" + query : "");
-			return fileName.length() > 100 ? fileName.substring(0, 100) : fileName;
+			return fileName.length() > 80 ? fileName.substring(0, 80) : fileName;
 		} catch (MalformedURLException e) {
 			return UUID.randomUUID().toString();
 		}

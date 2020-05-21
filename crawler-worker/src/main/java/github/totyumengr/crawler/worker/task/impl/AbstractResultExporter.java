@@ -6,10 +6,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import org.redisson.api.RedissonClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 
 import com.google.gson.reflect.TypeToken;
 
@@ -20,9 +18,6 @@ import github.totyumengr.crawler.worker.task.ResultExporter;
 public abstract class AbstractResultExporter implements ResultExporter {
 
 	protected Logger logger = LoggerFactory.getLogger(getClass());
-	
-	@Autowired
-	protected RedissonClient pipelineDataClient;
 	
 	@SuppressWarnings("unchecked")
 	@Override

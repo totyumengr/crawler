@@ -5,6 +5,8 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
+import org.redisson.api.RedissonClient;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import github.totyumengr.crawler.Crawlers;
@@ -19,6 +21,9 @@ import github.totyumengr.crawler.worker.task.ResultExporter;
 @Component("pipeline")
 public class PipelineResultExporter extends AbstractResultExporter implements ResultExporter {
 
+	@Autowired
+	private RedissonClient pipelineDataClient;
+	
 	@Override
 	public void doExport(Task task, List<List<String>> extractData, Collection<String> allUrl) {
 		

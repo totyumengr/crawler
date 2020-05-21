@@ -74,7 +74,7 @@ public abstract class SavePointPlanner {
 		}
 	}
 	
-	private static final String RECYCLE_BIN_STORY = ".recyclebin.clean.";
+	private static final String RECYCLE_BIN_STORY = "recyclebin.clean.";
 	
 	public void init() throws Exception {
 		

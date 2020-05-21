@@ -121,11 +121,10 @@ public class StoryWorker {
 			Story story = Crawlers.GSON.fromJson(storyJson, Story.class);
 			
 			try {
-				// 开始Story
-				openStory(story);
-				
 				// 预处理
 				preStory(story);
+				// 开始Story
+				openStory(story);
 				
 				// 按照顺序执行任务。当前是单线程调度任务。
 				int argsSize = story.getArgs().size();
@@ -239,7 +238,6 @@ public class StoryWorker {
 		
 		File storyFolder = new File(storyExportDir, story.getName());
 		try {
-			
 			List<Object> storyTrace = storyDataClient.getListMultimap(story.getName() + Crawlers.STORY_TRACE).get(Crawlers.STORY_TRACE);
 			if (storyTrace == null) {
 				logger.info("Do not clean story={} because cannot found trace info.", story.getName());
@@ -264,7 +262,7 @@ public class StoryWorker {
 			logger.info("Story={} logging is done...", story.getName());
 			
 		} catch (IOException e) {
-			logger.error("Error when try to logging story={}", story.getName());
+			logger.error("Error when try to logging story={}", story.getName(), e);
 		} finally {
 			try {
 				storyDataClient.getMap(storyWorkerId + Crawlers.STORY_FILE_QUEYE_DOING).remove(story.getName());

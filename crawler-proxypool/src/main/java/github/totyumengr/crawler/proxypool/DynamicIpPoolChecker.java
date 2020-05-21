@@ -54,6 +54,9 @@ public class DynamicIpPoolChecker extends BaseSeimiCrawler {
 	@Value("${fetcher.ippool.fullupdate.afternchecker}")
 	private int afterNChecker;
 	
+	@Value("${fetcher.ippool.minsize}")
+	private int minSizeInPool;
+	
 	@Value("${backlog.proxy.authName}")
 	private String proxyAuthenticatorName;
 	@Value("${backlog.proxy.authPassword}")
@@ -158,6 +161,7 @@ public class DynamicIpPoolChecker extends BaseSeimiCrawler {
 		
 		Executors.newSingleThreadScheduledExecutor().scheduleWithFixedDelay(new CheckerTask(),
 				initialDelay, period, TimeUnit.SECONDS);
+		
 		Executors.newSingleThreadExecutor().execute(new Runnable() {
 
 			@Override
@@ -166,8 +170,10 @@ public class DynamicIpPoolChecker extends BaseSeimiCrawler {
 					try {
 						Object anti = checkerClient.getBlockingQueue(Crawlers.PROXYIP_ANTI).take();
 						String proxyIp = anti.toString();
-						checkerClient.getMap(Crawlers.PROXYPOOL).remove(proxyIp);
-						logger.info("Found {} in anti-list, maybe is not available, remove it", proxyIp);
+						if (checkerClient.getMap(Crawlers.PROXYPOOL).size() >= minSizeInPool) {
+							checkerClient.getMap(Crawlers.PROXYPOOL).remove(proxyIp);
+							logger.info("Found {} in anti-list, maybe is not available, remove it", proxyIp);
+						}
 					} catch (Exception e) {
 						logger.info("Error when try to get anti proxy ip", e);
 					}
@@ -217,7 +223,7 @@ public class DynamicIpPoolChecker extends BaseSeimiCrawler {
 		try {
 			String useProxyIp = PROXY_LOCAL.get();
 			if (useProxyIp == null) {
-				Set<Object> proxys = checkerClient.getMap(Crawlers.PROXYPOOL).keySet();
+				Set<Object> proxys = checkerClient.getMap(Crawlers.PROXYPOOL).readAllKeySet();
 				if (proxys != null && proxys.size() > 0) {
 					Object[] ips = proxys.toArray();
 					useProxyIp = ips[RandomUtils.nextInt(0, ips.length)].toString();

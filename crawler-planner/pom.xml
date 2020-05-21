@@ -22,11 +22,13 @@
 
 	<dependencies>
 	
+		<!-- Public Repository中没有 -->
 		<dependency>
 		    <groupId>com.jd.jss</groupId>
 		    <artifactId>jss-sdk-java</artifactId>
 		    <version>1.4.2-SNAPSHOT</version>
 		</dependency>
+		<!-- Public Repository中没有 -->
 	
 		<dependency>
 			<groupId>github.totyumengr.crawler</groupId>
