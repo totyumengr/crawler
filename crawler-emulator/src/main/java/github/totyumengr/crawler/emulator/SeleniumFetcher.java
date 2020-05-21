@@ -10,6 +10,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import javax.annotation.PostConstruct;
+import javax.annotation.PreDestroy;
 
 import org.apache.commons.lang3.RandomUtils;
 import org.openqa.selenium.By;
@@ -97,6 +98,25 @@ public class SeleniumFetcher {
 		}
 	}
 	
+	private volatile boolean running = true;
+	private ExecutorService executor = Executors.newSingleThreadExecutor();
+	/**
+	 * 关闭
+	 */
+	@PreDestroy
+	private void destory() {
+		// 设置信号量
+		running = false;
+		logger.info("Do destory logic {}", Crawlers.EMULATOR_BACKLOG);
+		try {
+			Thread.sleep(3 * 1000);
+			executor.shutdownNow();
+		} catch (Exception e) {
+			// Ignore
+		}
+		logger.info("Stop to watch {}", Crawlers.EMULATOR_BACKLOG);
+	}
+	
 	private class EmulatorTask implements Runnable {
 		
 		private Map<String, Integer> currentRetryCount = new HashMap<String, Integer>();
@@ -104,7 +124,7 @@ public class SeleniumFetcher {
 		@Override
 		public void run() {
 			
-			while (true) {
+			while (running) {
 				Object taskData = null;
 				List<String> resultUrls = new ArrayList<String>();
 				Task task;
@@ -282,7 +302,7 @@ public class SeleniumFetcher {
 	@PostConstruct
 	public void init() {
 		
-		Executors.newSingleThreadExecutor().execute(new EmulatorTask());
+		executor.execute(new EmulatorTask());
 		logger.info("Start to watch {}", Crawlers.EMULATOR_BACKLOG);
 	}
 }

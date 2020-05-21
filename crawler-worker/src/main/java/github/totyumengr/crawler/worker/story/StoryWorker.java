@@ -1,13 +1,9 @@
 package github.totyumengr.crawler.worker.story;
 
-import java.io.File;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.RejectedExecutionException;
@@ -16,8 +12,8 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 import javax.annotation.PostConstruct;
+import javax.annotation.PreDestroy;
 
-import org.apache.commons.io.FileUtils;
 import org.redisson.api.RedissonClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -59,20 +55,27 @@ public class StoryWorker {
 	@Value("${worker.story.log.ttl}")
 	private Integer storyTTL;
 	
-	@Value("${exporter.story.dir}")
-	private String storyExportDir;
-	
 	@Value("${worker.runner.parallel}")
 	private int storyRunnerParallel;
+	
+	private ScheduledExecutorService storyScanner = Executors.newSingleThreadScheduledExecutor();
 	
 	@PostConstruct
 	private void init() {
 		
-		ScheduledExecutorService storyScanner = Executors.newSingleThreadScheduledExecutor();
-		ThreadPoolExecutor storyRunner = new ThreadPoolExecutor((storyRunnerParallel / 3), storyRunnerParallel,
-                0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<Runnable>(1));
+		logger.info("Start to resume doing workers after reboot {}", storyWorkerId);
+		List<Object> doingKeys = storyDataClient.getListMultimap(Crawlers.STORY_FILE_QUEYE_DOING).get(storyWorkerId);
+		for (Object o : doingKeys) {
+			String value = o.toString();
+			storyDataClient.getQueue(Crawlers.STORY_FILE_QUEYE).add(value);
+			logger.info("Reboot a story and submit it. {}", value);
+		}
+		storyDataClient.getListMultimap(Crawlers.STORY_FILE_QUEYE_DOING).removeAll(storyWorkerId);
+		logger.info("End to resume doing workers after reboot {}", storyWorkerId);
 		
 		logger.info("Start to watch {}", Crawlers.STORY_FILE_QUEYE);
+		ThreadPoolExecutor storyRunner = new ThreadPoolExecutor((storyRunnerParallel / 3), storyRunnerParallel,
+                0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<Runnable>(1));
 		storyScanner.scheduleWithFixedDelay(new Runnable() {
 
 			@Override
@@ -94,15 +97,22 @@ public class StoryWorker {
 				}
 			}
 		}, initialDelay, period, TimeUnit.SECONDS);
-		
-		logger.info("Start to resume doing workers after reboot");
-		Set<Entry<Object, Object>> doingKeys = storyDataClient.getMap(storyWorkerId + Crawlers.STORY_FILE_QUEYE_DOING).readAllEntrySet();
-		for (Entry<Object, Object> o : doingKeys) {
-			String key = o.getKey().toString();
-			String value = o.getValue().toString();
-			storyDataClient.getQueue(Crawlers.STORY_FILE_QUEYE).add(value);
-			logger.info("Reboot a story {} and submit it. {}", key, value);
+	}
+	
+	/**
+	 * 关闭
+	 */
+	@PreDestroy
+	private void destory() {
+		// 设置信号量
+		logger.info("Do destory logic {}", Crawlers.STORY_FILE_QUEYE);
+		try {
+			Thread.sleep(3 * 1000);
+			storyScanner.shutdownNow();
+		} catch (Exception e) {
+			// Ignore
 		}
+		logger.info("Stop to watch {}", Crawlers.STORY_FILE_QUEYE);
 	}
 	
 	private class StoryRunner implements Runnable {
@@ -200,16 +210,11 @@ public class StoryWorker {
 	
 	private void openStory(Story story) throws Exception {
 		
-		File storyFolder = new File(storyExportDir, story.getName());
-		if (storyFolder.exists()) {
-			FileUtils.deleteDirectory(storyFolder);
-		}
-		
 		// For 重跑的场景
 		cleanIntermediateData(story);
 		
 		// 记录Story状态
-		storyDataClient.getMap(storyWorkerId + Crawlers.STORY_FILE_QUEYE_DOING).put(story.getName(), Crawlers.GSON.toJson(story));
+		storyDataClient.getListMultimap(Crawlers.STORY_FILE_QUEYE_DOING).get(storyWorkerId).add(Crawlers.GSON.toJson(story));
 	}
 	
 	private void preStory(Story story) {
@@ -236,42 +241,13 @@ public class StoryWorker {
 	
 	private void closeStory(Story story) {
 		
-		File storyFolder = new File(storyExportDir, story.getName());
 		try {
-			List<Object> storyTrace = storyDataClient.getListMultimap(story.getName() + Crawlers.STORY_TRACE).get(Crawlers.STORY_TRACE);
-			if (storyTrace == null) {
-				logger.info("Do not clean story={} because cannot found trace info.", story.getName());
-				return;
-			}
-			
-			if (!storyFolder.exists()) {
-				FileUtils.forceMkdir(storyFolder);
-			}
-			// 开始写文件
-			File storyLogFile = new File(storyFolder, story.getName() + ".log");
-			FileUtils.touch(storyLogFile);
-			
-			List<String> c = new ArrayList<String>();
-			// 输出Body部分
-			for (Object taskLog : storyTrace) {
-				Task task = Crawlers.GSON.fromJson(taskLog.toString(),
-						new TypeToken<Task>() {}.getType());
-				c.add(task.getLogUrl());
-			}
-			FileUtils.writeLines(storyLogFile, c, true);
-			logger.info("Story={} logging is done...", story.getName());
-			
-		} catch (IOException e) {
-			logger.error("Error when try to logging story={}", story.getName(), e);
-		} finally {
-			try {
-				storyDataClient.getMap(storyWorkerId + Crawlers.STORY_FILE_QUEYE_DOING).remove(story.getName());
-				storyDataClient.getQueue(story.getPlanName() + Crawlers.STORY_FILE_QUEYE_DONE).add(Crawlers.GSON.toJson(story));
-				logger.info("Done...{}", story.getName());
-				cleanIntermediateData(story);
-			} catch (Exception e) {
-				logger.error("Error when try to Expire intermidiate data", e);
-			}
+			storyDataClient.getListMultimap(Crawlers.STORY_FILE_QUEYE_DOING).get(storyWorkerId).remove(Crawlers.GSON.toJson(story));
+			storyDataClient.getQueue(story.getPlanName() + Crawlers.STORY_FILE_QUEYE_DONE).add(Crawlers.GSON.toJson(story));
+			logger.info("Done...{}", story.getName());
+			cleanIntermediateData(story);
+		} catch (Exception e) {
+			logger.error("Error when try to Expire intermidiate data", e);
 		}
 	}
 }

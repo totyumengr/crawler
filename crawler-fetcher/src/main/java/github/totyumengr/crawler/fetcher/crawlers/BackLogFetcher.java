@@ -7,7 +7,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+
+import javax.annotation.PreDestroy;
 
 import org.apache.commons.lang3.RandomUtils;
 import org.redisson.api.RedissonClient;
@@ -62,6 +65,25 @@ public class BackLogFetcher extends BaseSeimiCrawler {
 	@Value("${backlog.repush.maxcount}")
 	private int repushMaxCount;
 	
+	private volatile boolean running = true;
+	private ExecutorService executor = Executors.newSingleThreadExecutor();
+	/**
+	 * 关闭
+	 */
+	@PreDestroy
+	private void destory() {
+		// 设置信号量
+		running = false;
+		logger.info("Do destory logic {}", Crawlers.BACKLOG);
+		try {
+			Thread.sleep(3 * 1000);
+			executor.shutdownNow();
+		} catch (Exception e) {
+			// Ignore
+		}
+		logger.info("Stop to watch {}", Crawlers.BACKLOG);
+	}
+	
 	/**
 	 * 真正去执行的抓取任务类
 	 * @author mengran7
@@ -80,7 +102,7 @@ public class BackLogFetcher extends BaseSeimiCrawler {
 		@Override
 		public void run() {
 			
-			while(true) {
+			while(running) {
 				try {
 					Object backlog = backlogClient.getBlockingQueue(Crawlers.BACKLOG).take();
 					logger.info("Get a fetch task, url={}", backlog);
@@ -221,8 +243,7 @@ public class BackLogFetcher extends BaseSeimiCrawler {
 	@Override
 	public String[] startUrls() {
 		
-		// TODO: 需要改一下，但取回任务到本地有丢失风险。
-		Executors.newSingleThreadExecutor().execute(new FetchTask(fetcherClient));
+		executor.execute(new FetchTask(fetcherClient));
 		logger.info("Start to watch {}", Crawlers.BACKLOG);
 		
 		return new String[0];

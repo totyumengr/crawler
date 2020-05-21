@@ -53,7 +53,8 @@ public class JssFileTaskResultExporter extends FileTaskResultExporter implements
 		    
 			InputStream is = new ByteArrayInputStream(bytes);
 			
-			String md5 = jss.bucket(bucket).object(storyName + "/" + fileName)
+			String md5 = jss.bucket(bucket)
+					.object(dir.endsWith("/") ? "" : "/" + storyName + "/" + fileName)
 					.entity(bytes.length, is)
 					.contentType("text/html")
 					.put();

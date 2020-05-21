@@ -2,7 +2,9 @@ package github.totyumengr.crawler;
 
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.text.SimpleDateFormat;
 import java.util.Arrays;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -215,13 +217,28 @@ public final class Crawlers {
 
 		// ------------------------ 这几个属性不是预定义的，内部处理用
 		private String storyName;
-		private String logUrl;
-		private String repostUrl;
 		// 是否被反抓取了
 		private volatile boolean anti;
 		private volatile boolean etlDone;
 		private String antiHtml;
+		// 状态
+		public static enum STATUS {
+			NEW, SUBMITTED, FETCHED, TIMEOUTED, EXPORTED, NO_EXPORTED, ANTIED
+		}
 		
+		private String status = STATUS.NEW.name() + "-" + new SimpleDateFormat("yyyy-MM-dd hh:mm:ss").format(new Date());
+		
+		public void setStatus(String status) {
+			this.status = status + "-" + new SimpleDateFormat("yyyy-MM-dd hh:mm:ss").format(new Date());
+		}
+		public void setAnti(boolean anti) {
+			this.anti = anti;
+			this.setStatus(STATUS.ANTIED.name());
+		}
+		
+		public String getStatus() {
+			return status;
+		}
 		public boolean isEtlDone() {
 			return etlDone;
 		}
@@ -236,21 +253,6 @@ public final class Crawlers {
 		}
 		public boolean isAnti() {
 			return anti;
-		}
-		public void setAnti(boolean anti) {
-			this.anti = anti;
-		}
-		public String getRepostUrl() {
-			return repostUrl;
-		}
-		public void setRepostUrl(String repostUrl) {
-			this.repostUrl = repostUrl;
-		}
-		public String getLogUrl() {
-			return logUrl;
-		}
-		public void setLogUrl(String logUrl) {
-			this.logUrl = logUrl;
 		}
 		public String getStoryName() {
 			return storyName;

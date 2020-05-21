@@ -9,12 +9,16 @@ import java.util.List;
 import java.util.UUID;
 
 import org.apache.commons.io.FileUtils;
+import org.redisson.api.RedissonClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import github.totyumengr.crawler.Crawlers;
 import github.totyumengr.crawler.Crawlers.Task;
+import github.totyumengr.crawler.Crawlers.Task.STATUS;
 import github.totyumengr.crawler.worker.task.ResultExporter;
 
 @Component("file")
@@ -24,6 +28,8 @@ public class FileTaskResultExporter extends AbstractResultExporter implements Re
 	
 	@Value("${exporter.story.dir}")
 	private String storyExportDir;
+	@Autowired
+	private RedissonClient pipelineDataClient;
 	
 	@Override
 	public void doExport(Task task, List<List<String>> extractData, Collection<String> allUrl) {
@@ -45,8 +51,16 @@ public class FileTaskResultExporter extends AbstractResultExporter implements Re
 			String fileName = convertUrlToFileName(task.getFromUrl());
 			List<String> writeTo = preWriteToFile(c);
 			writeToFile(task.getStoryName(), fileName, writeTo, task);
+			task.setStatus(STATUS.EXPORTED.name());
 		} else {
+			task.setStatus(STATUS.NO_EXPORTED.name());
 			logger.info("Do not write to file because empty... {}", task.getFromUrl());
+		}
+		
+		// 记录Trace
+		if (task.isTraceLog()) {
+			pipelineDataClient.getListMultimap(task.getStoryName() + Crawlers.STORY_TRACE).get(task.getFromUrl())
+				.add(Crawlers.GSON.toJson(task));
 		}
 	}
 	
@@ -68,6 +82,9 @@ public class FileTaskResultExporter extends AbstractResultExporter implements Re
 				FileUtils.forceMkdir(storyFolder);
 			}
 			File taskFile = new File(storyFolder, fileName);
+			if (taskFile.exists()) {
+				FileUtils.forceDelete(taskFile);
+			}
 			FileUtils.touch(taskFile);
 			
 			FileUtils.writeLines(taskFile, contents, true);	

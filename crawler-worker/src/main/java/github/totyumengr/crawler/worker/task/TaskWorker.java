@@ -20,6 +20,7 @@ import com.google.gson.reflect.TypeToken;
 
 import github.totyumengr.crawler.Crawlers;
 import github.totyumengr.crawler.Crawlers.Task;
+import github.totyumengr.crawler.Crawlers.Task.STATUS;
 
 /**
  * 根据JSON格式的任务描述文件，指定执行计划
@@ -148,6 +149,9 @@ public class TaskWorker {
 			structDataClient.getMap(task.getStoryName() + entry.getKey()).put(url, entry.getValue());
 		}
 		
+		// 第三步：设置Task状态
+		task.setStatus(STATUS.SUBMITTED.name());
+		
 		// 第四步：Launch
 		String submitTarget = task.getEmulator() == null ? Crawlers.BACKLOG : Crawlers.EMULATOR_BACKLOG;
 		// 不改变原有的Task
@@ -158,8 +162,8 @@ public class TaskWorker {
 		
 		// 记录Trace
 		if (task.isTraceLog()) {
-			task.setLogUrl(url);
-			structDataClient.getListMultimap(task.getStoryName() + Crawlers.STORY_TRACE).get(Crawlers.STORY_TRACE).add(Crawlers.GSON.toJson(task));
+			structDataClient.getListMultimap(task.getStoryName() + Crawlers.STORY_TRACE).get(task.getFromUrl())
+				.add(Crawlers.GSON.toJson(forSubmit));
 		}
 	}
 	
@@ -193,21 +197,32 @@ public class TaskWorker {
 		}
 		
 		// 当前任务执行完成
-		countDown.await(timeout, TimeUnit.SECONDS);
-		
-		try {
-			// 第五步：落地任务结果
-			ResultExporter exporter = applicationContext.getBean(task.getLanding(), ResultExporter.class);
-			logger.info("Start exporter on fromUrl={}", task.getFromUrl());
-			exporter.export(task, pageData.taskResult);
-		} catch (Exception e) {
-			logger.error("Error when export task={}", task.getFromUrl());
+		boolean isDone = countDown.await(timeout, TimeUnit.SECONDS);
+		if (!isDone) {
+			task.setStatus(STATUS.TIMEOUTED.name());
+		} else {
+			task.setStatus(STATUS.FETCHED.name());
+		}
+		// 记录Trace
+		if (task.isTraceLog()) {
+			structDataClient.getListMultimap(task.getStoryName() + Crawlers.STORY_TRACE).get(task.getFromUrl())
+				.add(Crawlers.GSON.toJson(task));
 		}
 		
 		// 判断是否被反抓取
 		Object alert = structDataClient.getMap(task.getStoryName() + Crawlers.EXTRACTOR_CONTENT_ANTI_ALERT).get(task.getFromUrl());
 		if (alert != null) {
 			task.setAnti(true);
+			// 记录Trace
+			if (task.isTraceLog()) {
+				structDataClient.getListMultimap(task.getStoryName() + Crawlers.STORY_TRACE).get(task.getFromUrl())
+					.add(Crawlers.GSON.toJson(task));
+			}
+		} else {
+			// 第五步：落地任务结果
+			ResultExporter exporter = applicationContext.getBean(task.getLanding(), ResultExporter.class);
+			logger.info("Start exporter on fromUrl={}", task.getFromUrl());
+			exporter.export(task, pageData.taskResult);
 		}
 		
 		if (nextPageSE != null) {

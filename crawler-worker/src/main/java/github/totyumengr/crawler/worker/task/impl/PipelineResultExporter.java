@@ -11,6 +11,7 @@ import org.springframework.stereotype.Component;
 
 import github.totyumengr.crawler.Crawlers;
 import github.totyumengr.crawler.Crawlers.Task;
+import github.totyumengr.crawler.Crawlers.Task.STATUS;
 import github.totyumengr.crawler.worker.task.ResultExporter;
 
 /**
@@ -48,5 +49,12 @@ public class PipelineResultExporter extends AbstractResultExporter implements Re
 		String json = Crawlers.GSON.toJson(extractUrl);
 		pipelineDataClient.getMap(task.getStoryName() + Crawlers.STORY_PIPELINE).put(task.getFromUrl(), json);
 		logger.info("Put pipeline of {}", task.getFromUrl());
+		
+		task.setStatus(STATUS.EXPORTED.name());
+		// 记录Trace
+		if (task.isTraceLog()) {
+			pipelineDataClient.getListMultimap(task.getStoryName() + Crawlers.STORY_TRACE).get(task.getFromUrl())
+				.add(Crawlers.GSON.toJson(task));
+		}
 	}
 }
