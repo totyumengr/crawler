@@ -12,12 +12,14 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.tuple.ImmutablePair;
+import org.apache.commons.lang3.tuple.Pair;
 import org.redisson.api.RListMultimap;
 import org.redisson.api.RedissonClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.util.StringUtils;
 
 import github.totyumengr.crawler.Crawlers;
 import github.totyumengr.crawler.Crawlers.Story;
@@ -88,9 +90,8 @@ public abstract class SavePointPlanner {
 			@Override
 			public void run() {
 				try {
-					List<Object> running = storyDataClient.getList(Crawlers.PLAN_RANNING);
-					for (Object r : running) {
-						String planName = r.toString();
+					List<String> running = getRunningPlan();
+					for (String planName : running) {
 						Object doneStory = storyDataClient.getQueue(planName + Crawlers.STORY_FILE_QUEYE_DONE).poll();
 						if (doneStory != null) {
 							logger.info("Found a story have done. {}", doneStory);
@@ -117,12 +118,13 @@ public abstract class SavePointPlanner {
 								logger.info("Clean {} out recycle-bin.", originalStoryName);
 							}
 						}
-						int runningStory = storyDataClient.getListMultimap(Crawlers.PLAN_STORY_RUNNING).get(planName).size();
-						logger.info("Plan {} has running story {}", planName, runningStory);
-						if (runningStory == 0) {
+						boolean isDone = planHasDone(planName);
+						if (isDone) {
 							// 清除Plan
 							storyDataClient.getList(Crawlers.PLAN_RANNING).remove(planName);
 							logger.info("Plan {} has done", planName);
+							// 回调
+							handlePlanDone(planName);
 						}
 					}
 				} catch (Exception e) {
@@ -131,6 +133,8 @@ public abstract class SavePointPlanner {
 			}
 		}, initialDelay, period, TimeUnit.SECONDS);
 	}
+	
+	protected abstract void handlePlanDone(String planName);
 	
 	private void submitStory(String plannerName, Story story) {
 		String storyJson = Crawlers.GSON.toJson(story);
@@ -181,6 +185,19 @@ public abstract class SavePointPlanner {
 		return running == null ? new ArrayList<String>(0) : running;
 	}
 	
+	public boolean planHasDone(String planName) {
+		
+		// 如果不在Running列表中
+		if (!getRunningPlan().contains(planName)) {
+			return true;
+		}
+		// 如果没有Doing状态的Story
+		if (getRunningStorysOfPlan(planName).size() == 0) {
+			return true;
+		}
+		return false;
+	}
+	
 	public List<String> getStorysOfPlan(String planName) {
 		
 		List<Object> storys = storyDataClient.getListMultimap(Crawlers.PLAN_STORY_RUNNING).get(planName);
@@ -189,29 +206,44 @@ public abstract class SavePointPlanner {
 	
 	public List<String> getRunningStorysOfPlan(String planName) {
 		
+		if (!StringUtils.hasLength(planName)) {
+			return new ArrayList<String>(0);
+		}
+		
 		RListMultimap<String, String> storys = storyDataClient.getListMultimap(Crawlers.STORY_FILE_QUEYE_DOING);
 		if (storys == null) {
 			return new ArrayList<String>(0);
 		}
 		
 		List<String> running = new ArrayList<String>();
-		for (String key : storys.keySet()) {
-			running.addAll(storys.get(key));
+		for (String key : storys.readAllKeySet()) {
+			for (String storyJson : storys.get(key)) {
+				Story story = Crawlers.GSON.fromJson(storyJson, Story.class);
+				if (planName.equals(story.getPlanName())) {
+					running.add(story.getName());
+				}
+			}
 		}
 		return running;
 	}
 	
-	public Map<String, String> getTasksOfStory(String storyName) {
+	// Key is task URL，值是这个Task的执行路径，Pair的Left是执行URL，Right是状态
+	public Map<String, List<Pair<String, String>>> getTasksOfStory(String storyName) {
 		
-		List<Object> trace = storyDataClient.getListMultimap(Crawlers.STORY_TRACE).get(Crawlers.STORY_TRACE);
+		RListMultimap<String, String> trace = storyDataClient.getListMultimap(storyName + Crawlers.STORY_TRACE);
 		if (trace == null) {
-			return new HashMap<String, String>(0);
+			return new HashMap<String, List<Pair<String, String>>>(0);
 		}
 		
-		Map<String, String> running = new LinkedHashMap<String, String>();
-		for (Object task : trace) {
-			Task t = Crawlers.GSON.fromJson(task.toString(), Task.class);
-			running.put(t.getFromUrl(), t.getStatus());
+		Map<String, List<Pair<String, String>>> running = new LinkedHashMap<String, List<Pair<String, String>>>();
+		for (String key : trace.readAllKeySet()) {
+			List<String> taskTrace = trace.get(key);
+			List<Pair<String, String>> traceStatus = new ArrayList<Pair<String, String>>();
+			for (String task : taskTrace) {
+				Task t = Crawlers.GSON.fromJson(task, Task.class);
+				traceStatus.add(new ImmutablePair<String, String>(t.getFromUrl(), t.getStatus()));
+			}
+			running.put(key, traceStatus);
 		}
 		return running;
 	}

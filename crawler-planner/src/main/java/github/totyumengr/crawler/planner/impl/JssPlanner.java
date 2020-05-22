@@ -113,4 +113,17 @@ public class JssPlanner extends SavePointPlanner {
 		
 		return fillStory(story, start, urlTemplate, seedIds, step);
 	}
+
+	@Override
+	protected void handlePlanDone(String planName) {
+		
+		boolean seedExists = jss.bucket(source).object("/seed/" + planName).exist();
+		if (!seedExists) {
+			logger.info("Do nothing because can not found seed file {}", planName);
+			return;
+		}
+		
+		String md5 = jss.bucket(source).object("/recyclebin/" + planName).copyFrom(source, "/seed/" + planName).copy();
+		logger.info("Push {} into recycle-bin. {}", planName, md5);
+	}
 }

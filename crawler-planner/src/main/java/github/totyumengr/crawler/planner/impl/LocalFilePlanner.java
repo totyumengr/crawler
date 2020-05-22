@@ -62,6 +62,11 @@ public class LocalFilePlanner extends SavePointPlanner {
 		this.setStoryTempalteName("book-douban-byId.json");
 		
 		File f = new File (storyDir, getFileName());
+		if (!f.exists()) {
+			logger.info("Can not found file name {}", fileName);
+			return;
+		}
+		
 		String doubanTemplate = FileUtils.readFileToString(f, "UTF-8");
 		bookIds = doubanTemplate.split("\r\n");
 		if (bookIds.length < 2) {
@@ -85,5 +90,14 @@ public class LocalFilePlanner extends SavePointPlanner {
 		String urlTemplate = story.getArgs().get(0);
 		
 		return fillStory(story, start, urlTemplate, bookIds, step);
+	}
+
+	@Override
+	protected void handlePlanDone(String planName) {
+		
+		File f = new File (storyDir, planName);
+		File fDone = new File (storyDir, planName + ".done");
+		f.renameTo(fDone);
+		logger.info("Done... {}", planName);
 	}
 }
