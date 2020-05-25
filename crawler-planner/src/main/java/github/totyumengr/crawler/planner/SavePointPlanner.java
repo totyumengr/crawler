@@ -40,6 +40,8 @@ public abstract class SavePointPlanner {
 	protected int initialDelay;
 	@Value("${planner.period}")
 	protected int period;
+	@Value("${planner.recyclebin.maxtry}")
+	protected int recycleBinMaxTry;
 	
 	public SavePointPlanner() {
 		super();
@@ -74,10 +76,10 @@ public abstract class SavePointPlanner {
 				story.getArgs().add(String.format(urlTemplate, format));
 			}
 			logger.info("Fill {} into story..", story.getArgs().size());
-			return new ImmutablePair<Crawlers.Story, Integer>(story, end);
+			return new ImmutablePair<Crawlers.Story, Integer>(story, lasted);
 		} else {
 			logger.info("Overflow... return null... {}", start);
-			return new ImmutablePair<Crawlers.Story, Integer>(null, end);
+			return new ImmutablePair<Crawlers.Story, Integer>(null, start);
 		}
 	}
 	
@@ -111,8 +113,12 @@ public abstract class SavePointPlanner {
 								String originalStoryName = story.getName();
 								story.setName(originalStoryName + RECYCLE_BIN_STORY);
 								story.setArgs(taskUrls);
-								// 提交Story
-								submitStory(planName, story);
+								if (StringUtils.countOccurrencesOf(story.getName(), RECYCLE_BIN_STORY) < recycleBinMaxTry) {
+									// 提交Story
+									submitStory(planName, story);
+								} else {
+									logger.info("Give up recycle-bin story: {}", originalStoryName);
+								}
 								// 倾倒垃圾箱
 								storyDataClient.getListMultimap(Crawlers.RECYCLE_BIN).fastRemove(originalStoryName);
 								logger.info("Clean {} out recycle-bin.", originalStoryName);
@@ -191,10 +197,18 @@ public abstract class SavePointPlanner {
 		if (!getRunningPlan().contains(planName)) {
 			return true;
 		}
-		// 如果没有Doing状态的Story
-		if (getRunningStorysOfPlan(planName).size() == 0) {
+		// 如果History是空的
+		List<String> storyHistory = getStorysOfPlan(planName);
+		if (storyHistory != null && storyHistory.size() == 0) {
 			return true;
 		}
+		
+		// 如果没有Doing状态的Story，并且Queue中是空的
+		List<String> workerQueue = storyDataClient.getList(Crawlers.STORY_FILE_QUEYE);
+		if (getRunningStorysOfPlan(planName).size() == 0 && workerQueue != null && workerQueue.size() == 0) {
+			return true;
+		}
+		
 		return false;
 	}
 	

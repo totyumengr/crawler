@@ -88,6 +88,9 @@ public class StoryWorker {
 						storyRunner.submit(new StoryRunner(storyInQueue.toString()));
 						// 找到一个Story
 						logger.info("Found a story and submit it. {}", storyInQueue);
+					} else {
+						// 休息一会儿
+						Thread.sleep(period * 10 * 1000);
 					}
 				} catch (RejectedExecutionException e) {
 					storyDataClient.getQueue(Crawlers.STORY_FILE_QUEYE).add(storyInQueue);
@@ -197,12 +200,12 @@ public class StoryWorker {
 		
 		try {
 			for (String key : Crawlers.clearDataKeys().getLeft()) {
-				storyDataClient.getMap(story.getName() + key).clear();
+				storyDataClient.getMap(story.getName() + key).delete();
 			}
 			for (String key : Crawlers.clearDataKeys().getRight()) {
-				storyDataClient.getListMultimap(story.getName() + key).clear();
+				storyDataClient.getListMultimap(story.getName() + key).delete();
 			}
-			logger.info("Done... Clean intermidiate data story={}", story.getName());
+			logger.info("Clean intermidiate data story={}", story.getName());
 		} catch (Exception e) {
 			logger.error("Error when try to clean intermidiate data story={}", story.getName());
 		}
@@ -235,7 +238,7 @@ public class StoryWorker {
 			
 			logger.info("Reset story args={} using el={}", story.getArgs(), story.getArgsEL());
 			story.setArgs(args);
-			logger.info("Done...Reset story args={} using el={}", story.getArgs().size(), story.getArgsEL());
+			logger.info("Reset story args={} using el={}", story.getArgs().size(), story.getArgsEL());
 		}
 	}
 	
@@ -243,9 +246,10 @@ public class StoryWorker {
 		
 		try {
 			storyDataClient.getListMultimap(Crawlers.STORY_FILE_QUEYE_DOING).get(storyWorkerId).remove(Crawlers.GSON.toJson(story));
-			storyDataClient.getQueue(story.getPlanName() + Crawlers.STORY_FILE_QUEYE_DONE).add(Crawlers.GSON.toJson(story));
 			logger.info("Done...{}", story.getName());
 			cleanIntermediateData(story);
+			// 事件通知
+			storyDataClient.getQueue(story.getPlanName() + Crawlers.STORY_FILE_QUEYE_DONE).add(Crawlers.GSON.toJson(story));
 		} catch (Exception e) {
 			logger.error("Error when try to Expire intermidiate data", e);
 		}

@@ -266,7 +266,7 @@ public class TaskWorker {
 			for (String key : Crawlers.clearDataKeys().getLeft()) {
 				structDataClient.getMap(task.getStoryName() + key).fastRemove(task.getFromUrl());
 			}
-			logger.info("Done... Clean intermidiate data task={}", task.getName());
+			logger.info("Clean intermidiate data task={}", task.getName());
 		} catch (Exception e) {
 			logger.error("Error when try to clean intermidiate data task={}", task.getName());
 		}
