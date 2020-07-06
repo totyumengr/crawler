@@ -58,7 +58,7 @@ public class LocalFilePlanner extends SavePointPlanner {
 		// 启动
 		super.init();
 		
-		this.setFileName("book_id.1");
+		this.setFileName("book_id.last2");
 		this.setStoryTempalteName("book-douban-byId.json");
 		
 		File f = new File (storyDir, getFileName());
@@ -85,7 +85,7 @@ public class LocalFilePlanner extends SavePointPlanner {
 		Integer start = savePoint;
 		
 		Story story = Crawlers.GSON.fromJson(template, Story.class);
-		story.setName(story.getName() + "-" + start + ".");
+		story.setName(planName + "-" + story.getName() + "-" + start + ".");
 		story.setPlanName(planName);
 		String urlTemplate = story.getArgs().get(0);
 		

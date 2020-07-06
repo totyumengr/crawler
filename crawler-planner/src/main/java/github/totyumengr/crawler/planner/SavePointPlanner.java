@@ -7,6 +7,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Queue;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -197,19 +198,21 @@ public abstract class SavePointPlanner {
 		if (!getRunningPlan().contains(planName)) {
 			return true;
 		}
-		// 如果History是空的
+		
+		// 如果History不是空
 		List<String> storyHistory = getStorysOfPlan(planName);
-		if (storyHistory != null && storyHistory.size() == 0) {
-			return true;
+		if (storyHistory != null && storyHistory.size() > 0) {
+			return false;
 		}
 		
-		// 如果没有Doing状态的Story，并且Queue中是空的
-		List<String> workerQueue = storyDataClient.getList(Crawlers.STORY_FILE_QUEYE);
-		if (getRunningStorysOfPlan(planName).size() == 0 && workerQueue != null && workerQueue.size() == 0) {
-			return true;
+		// Done逻辑未处理完
+		Queue<Object> doneQueue = storyDataClient.getQueue(planName + Crawlers.STORY_FILE_QUEYE_DONE);
+		int doneQueueSize = doneQueue == null ? 0 : doneQueue.size();
+		if (doneQueueSize > 0) {
+			return false;
 		}
 		
-		return false;
+		return true;
 	}
 	
 	public List<String> getStorysOfPlan(String planName) {
